@@ -1,0 +1,49 @@
+# Alternate to Homebrew Postgres. The database is published on host port 5433
+# because a local Postgres already uses 5432. The API migrates and reseeds on start.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bazaar_owner
+      POSTGRES_PASSWORD: bazaar_owner
+      POSTGRES_DB: bazaar
+    ports:
+      - "5433:5432"
+    volumes:
+      - bazaar-pg:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-app-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bazaar_owner -d bazaar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://bazaar_app:bazaar_app@db:5432/bazaar
+      OWNER_DATABASE_URL: postgresql+psycopg://bazaar_owner:bazaar_owner@db:5432/bazaar
+      APP_DB_ROLE: bazaar_app
+      JWT_SECRET: dev-only-secret-change-me-before-any-real-deployment
+      RUN_MAINTENANCE: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000
+    environment:
+      API_URL: http://api:8000
+      JWT_SECRET: dev-only-secret-change-me-before-any-real-deployment
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  bazaar-pg:
