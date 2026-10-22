@@ -1,4 +1,16 @@
-from app.routers import audit, auth, categories, notifications, products, roles, storefront, system, vendors
+from app.routers import (
+    audit,
+    auth,
+    categories,
+    messages,
+    notifications,
+    orders,
+    products,
+    roles,
+    storefront,
+    system,
+    vendors,
+)
 
 ROUTERS = [
     auth.router,
@@ -8,6 +20,8 @@ ROUTERS = [
     vendors.router,
     products.router,
     categories.router,
+    orders.router,
+    messages.router,
     notifications.router,
     system.router,
 ]

@@ -67,6 +67,37 @@ def record(
     return entry
 
 
+def record_system(
+    db,
+    module: str,
+    action: str,
+    resource_type: str,
+    resource_id: Any = None,
+    *,
+    before: Any = None,
+    after: Any = None,
+    reason: str | None = None,
+) -> AuditLog:
+    """Audit row for work done by the platform itself (maintenance loop, expiry)."""
+    entry = AuditLog(
+        at=utcnow(),
+        **_actor(None, "Bazaar system"),
+        ip=None,
+        user_agent="maintenance",
+        module=module,
+        action=action,
+        resource_type=resource_type,
+        resource_id=None if resource_id is None else str(resource_id),
+        before=to_json(before),
+        after=to_json(after),
+        request_id=None,
+        outcome="success",
+        reason=reason,
+    )
+    db.add(entry)
+    return entry
+
+
 def record_standalone(
     request: Request,
     *,

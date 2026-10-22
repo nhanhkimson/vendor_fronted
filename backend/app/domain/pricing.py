@@ -186,15 +186,15 @@ def build_quote(
         quote.coupon_message = problem
         return quote
     eligible = [g for g in quote.groups if coupon.vendor_id is None or g.vendor_id == coupon.vendor_id]
-    for group, share in zip(eligible, allocate(amount, [g.items_subtotal_cents for g in eligible])):
+    for group, share in zip(eligible, allocate(amount, [g.items_subtotal_cents for g in eligible]), strict=True):
         line_shares = allocate(share, [line.line_total_cents for line in group.lines])
         if coupon.funded_by == "vendor":
             group.vendor_discount_cents = share
-            for line, part in zip(group.lines, line_shares):
+            for line, part in zip(group.lines, line_shares, strict=True):
                 line.vendor_discount_cents = part
         else:
             group.platform_discount_cents = share
-            for line, part in zip(group.lines, line_shares):
+            for line, part in zip(group.lines, line_shares, strict=True):
                 line.platform_discount_cents = part
     quote.coupon = coupon
     who = "the platform" if coupon.funded_by == "platform" else coupon.vendor_name or "the vendor"

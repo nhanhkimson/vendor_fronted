@@ -85,6 +85,7 @@ ADDRESSES = {
 def truncate_all(db: Session) -> None:
     tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
     db.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
+    db.execute(text("ALTER SEQUENCE order_number_seq RESTART WITH 1007"))
 
 
 def clear_files() -> None:
@@ -334,7 +335,7 @@ class Seeder:
             db.add(product)
             self.products[product.id] = product
             variants = p.get("variants") or [(f"{p['id']}-1", f"{p['id']}-STD", "One size", "Natural", p["stock"])]
-            for variant_id, sku, size, color, stock in variants:
+            for variant_id, sku, size, color, _stock in variants:
                 variant = Variant(
                     id=variant_id,
                     product_id=product.id,

@@ -15,7 +15,7 @@ from app.core.middleware import MUTATING
 from app.core.permissions import MODULES
 
 log = logging.getLogger("bazaar")
-TAG_TO_MODULE = {m.tag: m.id for m in MODULES}
+TAG_TO_MODULE = {m.tag: m.id for m in MODULES} | {"Notifications & Messages": "order", "Auth": "identity"}
 
 
 def route_audit_meta(request: Request) -> tuple[str, str]:

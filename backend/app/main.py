@@ -62,6 +62,7 @@ TAGS = [
                 "Platform-funded and vendor-funded coupons, flash windows and usage limits.",
                 "GMV, commission, top products, acquisition and CSV exports.",
             ],
+            strict=True,
         )
     ],
     {"name": "Notifications & Messages", "description": "In-app notifications and customer to vendor messages."},

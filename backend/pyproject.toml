@@ -25,4 +25,13 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]
+
+[tool.ruff]
+line-length = 140
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "B008", "UP046"]
