@@ -216,7 +216,7 @@ DOCUMENTS = [
     ("DOC-01", "V01", "government_id", "Government ID", "verified"),
     ("DOC-02", "V01", "address_proof", "Address proof", "verified"),
     ("DOC-10a", "V10", "government_id", "Government ID", "submitted"),
-    ("DOC-10b", "V10", "address_proof", "Address proof", "missing"),
+    ("DOC-10b", "V10", "address_proof", "Address proof", "submitted"),
     ("DOC-10c", "V10", "payout_account", "Payout account token", "submitted"),
 ]
 

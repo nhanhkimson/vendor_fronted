@@ -95,7 +95,7 @@ def _authenticate(ctx: Ctx, email: str, password: str) -> Principal:
     return principal
 
 
-def _set_cookie(response: Response, principal: Principal) -> None:
+def set_session_cookie(response: Response, principal: Principal) -> None:
     token, expires = create_access_token(
         principal.id, principal.name, principal.role_ids, principal.vendor_id
     )
@@ -120,7 +120,7 @@ def _set_cookie(response: Response, principal: Principal) -> None:
 )
 def login(body: LoginIn, response: Response, ctx: Ctx = Depends(public_ctx)) -> MeOut:
     principal = _authenticate(ctx, body.email, body.password)
-    _set_cookie(response, principal)
+    set_session_cookie(response, principal)
     return me_out(ctx.db, principal)
 
 
@@ -192,7 +192,7 @@ def register(body: RegisterIn, response: Response, ctx: Ctx = Depends(public_ctx
         principal=principal,
     )
     ctx.commit()
-    _set_cookie(response, principal)
+    set_session_cookie(response, principal)
     return me_out(db, principal)
 
 

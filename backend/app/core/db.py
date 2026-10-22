@@ -85,10 +85,12 @@ def current_scope(db: Session) -> dict[str, str]:
 def system_scope(db: Session) -> Iterator[None]:
     """Run a block as the platform (checkout orchestration, derived state, ledger).
 
-    Pending changes are flushed before the scope is restored, so row-level
-    security checks them under the platform scope.
+    The caller's pending changes are flushed first, so row-level security
+    checks them under the caller's own scope; changes made inside the block
+    are flushed before the scope is restored.
     """
     previous = current_scope(db)
+    db.flush()
     set_scope(db, "platform", user_id=previous.get("user_id"))
     try:
         yield

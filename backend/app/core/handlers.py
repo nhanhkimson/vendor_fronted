@@ -18,7 +18,7 @@ log = logging.getLogger("bazaar")
 TAG_TO_MODULE = {m.tag: m.id for m in MODULES}
 
 
-def _route_audit_meta(request: Request) -> tuple[str, str]:
+def route_audit_meta(request: Request) -> tuple[str, str]:
     route = request.scope.get("route")
     extra = getattr(route, "openapi_extra", None) or {}
     meta = extra.get("x-audit")
@@ -61,7 +61,7 @@ async def _record_failure(request: Request, status: int, message: str) -> None:
         return
     from app.services.audit import record_standalone
 
-    module, action = _route_audit_meta(request)
+    module, action = route_audit_meta(request)
     path_params = request.path_params or {}
     resource_id = next(iter(path_params.values()), None)
     principal = _principal(request)
