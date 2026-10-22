@@ -49,14 +49,14 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --background: #f4eee4;
+  --foreground: #171411;
+  --card: #fffcf7;
+  --card-foreground: #171411;
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: #24362c;
+  --primary-foreground: #f6efe3;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+
+.bazaar {
+  background-image:
+    radial-gradient(1200px 500px at 10% -10%, rgba(198, 161, 91, 0.18), transparent 55%),
+    radial-gradient(900px 400px at 110% 0%, rgba(184, 87, 42, 0.08), transparent 50%);
+}
+.wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+.serif { font-family: var(--font-serif), Georgia, serif; }
+.kh { font-family: var(--font-khmer), sans-serif; }
+.copper { color: #b8572a; }
+.panel { background: #fffcf7; border: 1px solid #e2d8c8; border-radius: 18px; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
