@@ -1,0 +1,29 @@
+.DS_Store
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Environment files (copy the .env.example files instead)
+.env
+.env.local
+!.env.example
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/test-results/
+frontend/playwright-report/
+frontend/*.tsbuildinfo
+
+# Runtime uploads. Seed images under backend/media/{products,shops,people} are tracked.
+backend/media/uploads/
+backend/private/
+
+# Logs
+*.log
+.run/
