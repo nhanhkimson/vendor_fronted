@@ -17,8 +17,22 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} ${khmer.variable} h-full`}>
-      <body className={`${sans.className} bazaar min-h-full`}>
+    <html lang="en" className={`${sans.variable} ${serif.variable} ${khmer.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+        {/* Apply saved locale before paint so Khmer/Chinese fonts are ready on first frame. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var l=localStorage.getItem("bazaar-locale");if(l==="en"||l==="km"||l==="zh"){document.documentElement.dataset.locale=l;document.documentElement.lang=l==="zh"?"zh-CN":l;}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="bazaar min-h-full">
         <Providers>
           <SiteHeader />
           <main>{children}</main>

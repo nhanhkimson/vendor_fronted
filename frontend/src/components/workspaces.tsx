@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Area, DoThis } from "@/components/area";
 import { useSession } from "@/components/providers";
 import { Records } from "@/components/records";
+import { StackSkeleton } from "@/components/skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, browserApi, unwrap } from "@/lib/api";
 import { money, rate, titleCase, when } from "@/lib/format";
 
@@ -41,19 +43,21 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
       <DoThis text={hints[area]} />
       <p className="text-sm text-[#6b6258]">{area === "account" ? "Customer" : area === "seller" ? "Vendor · own shop only" : me?.roles.map((role) => role.name).join(", ")}</p>
       <div className="grid gap-3 sm:grid-cols-3">
-        {summary.data
-          ? keys[area]
-              .filter((key) => key in summary.data)
-              .map((key) => {
-                const value = summary.data[key as keyof typeof summary.data];
-                return (
-                <div key={key} className="panel p-4">
-                  <p className="text-xs uppercase tracking-wide text-[#6b6258]">{titleCase(key)}</p>
-                  <p className="text-2xl">{typeof value === "number" && key.endsWith("cents") ? money(value) : String(value)}</p>
-                </div>
-                );
-              })
-          : null}
+        {summary.isLoading
+          ? keys[area].map((key) => <Skeleton key={key} className="h-24" />)
+          : summary.data
+            ? keys[area]
+                .filter((key) => key in summary.data)
+                .map((key) => {
+                  const value = summary.data[key as keyof typeof summary.data];
+                  return (
+                    <div key={key} className="panel p-4">
+                      <p className="text-xs uppercase tracking-wide text-[#6b6258]">{titleCase(key)}</p>
+                      <p className="text-2xl">{typeof value === "number" && key.endsWith("cents") ? money(value) : String(value)}</p>
+                    </div>
+                  );
+                })
+            : null}
       </div>
     </div>
   );
@@ -65,7 +69,7 @@ function OrderDetail({ id }: { id: string }) {
     queryKey: ["order", id],
     queryFn: () => unwrap(browserApi.GET("/api/account/orders/{order_id}", { params: { path: { order_id: id } } })),
   });
-  if (!order.data) return <p>{order.isLoading ? "Loading…" : "Order not found."}</p>;
+  if (!order.data) return order.isLoading ? <StackSkeleton rows={4} /> : <p>Order not found.</p>;
   const data = order.data;
   return (
     <div className="space-y-4">
@@ -185,6 +189,7 @@ function Messages({ mine }: { mine: boolean }) {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Messages</h1>
+      {messages.isLoading ? <StackSkeleton /> : null}
       {messages.data?.map((conversation) => (
         <article key={conversation.id} className="panel space-y-2 p-4">
           <h2>{conversation.subject}</h2>
@@ -236,6 +241,7 @@ function Notifications() {
       >
         Mark all read
       </button>
+      {notes.isLoading ? <StackSkeleton /> : null}
       {notes.data?.items.map((note) => (
         <article key={note.id} className="panel p-4">
           <p className="font-medium">{note.title}</p>
@@ -264,6 +270,7 @@ function SellerOrders() {
     <div className="space-y-3">
       <h1 className="serif text-4xl">Shop orders</h1>
       <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={tracking} onChange={(event) => setTracking(event.target.value)} />
+      {orders.isLoading ? <StackSkeleton rows={4} /> : null}
       {orders.data?.map((sub) => (
         <article key={sub.id} className="panel space-y-2 p-4">
           <h2>
@@ -309,6 +316,7 @@ function Reports({ seller }: { seller: boolean }) {
   return (
     <div className="space-y-4">
       <h1 className="serif text-4xl">{seller ? "My shop" : "Platform"} reports</h1>
+      {report.isLoading ? <StackSkeleton rows={4} /> : null}
       {data ? (
         <>
           <p>
@@ -336,9 +344,7 @@ function Reports({ seller }: { seller: boolean }) {
             Download CSV
           </a>
         </>
-      ) : (
-        <p>Loading…</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -409,6 +415,7 @@ function SellerPayouts() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Payouts</h1>
+      {earnings.isLoading ? <StackSkeleton /> : null}
       {data ? (
         <>
           <p>
@@ -431,9 +438,7 @@ function SellerPayouts() {
             </div>
           ))}
         </>
-      ) : (
-        <p>Loading…</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -443,6 +448,7 @@ function SellerReviews() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Reviews</h1>
+      {reviews.isLoading ? <StackSkeleton /> : null}
       {reviews.data?.map((review) => (
         <article key={review.id} className="panel p-4">
           <p>
@@ -480,8 +486,8 @@ function ShopSettings() {
   const [headline, setHeadline] = useState("");
   return (
     <div className="space-y-3">
-      <h1 className="serif text-4xl">{shop.data?.name || "Storefront"}</h1>
-      <p className="text-[#6b6258]">{shop.data?.headline}</p>
+      <h1 className="serif text-4xl">{shop.isLoading ? "Storefront" : shop.data?.name || "Storefront"}</h1>
+      {shop.isLoading ? <StackSkeleton rows={2} /> : <p className="text-[#6b6258]">{shop.data?.headline}</p>}
       <form
         className="flex gap-2"
         onSubmit={(event) => {
@@ -534,6 +540,7 @@ function Coupons({ seller }: { seller: boolean }) {
         <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={code} onChange={(event) => setCode(event.target.value)} />
         <button className="rounded-full bg-[#b8572a] px-3 text-white">Create 10%</button>
       </form>
+      {coupons.isLoading ? <StackSkeleton /> : null}
       {coupons.data?.map((coupon) => (
         <p key={coupon.code}>
           {coupon.code} · {coupon.summary} · used {coupon.used_count}
@@ -639,6 +646,7 @@ function Vendors() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Vendors</h1>
+      {vendors.isLoading ? <StackSkeleton rows={4} /> : null}
       {vendors.data?.map((vendor) => (
         <article key={vendor.id} className="panel space-y-2 p-4">
           <h2>
@@ -795,6 +803,7 @@ function Roles() {
         <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={key} onChange={(event) => setKey(event.target.value)} />
         <button className="rounded-full border border-[#e2d8c8] px-3">Revoke</button>
       </form>
+      {matrix.isLoading ? <StackSkeleton /> : null}
       {matrix.data?.roles.map((role) => (
         <p key={role.id}>
           <b>{role.name}</b> · {role.effective.length} permissions{role.parent_name ? ` · inherits ${role.parent_name}` : ""}
@@ -821,6 +830,7 @@ function AuditLog() {
       <a className="text-sm text-[#b8572a]" href="/api/audit-logs/export?format=csv">
         Export CSV
       </a>
+      {log.isLoading ? <StackSkeleton rows={5} /> : null}
       {log.data?.items.map((row) => (
         <article key={row.id} className="panel p-3 text-sm">
           <p>
@@ -846,7 +856,8 @@ function Commissions() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Commission</h1>
-      <p>Trial balance {trial.data?.balanced ? "is balanced" : "is loading"}.</p>
+      <p>Trial balance {trial.isLoading ? "is loading…" : trial.data?.balanced ? "is balanced" : "needs attention"}.</p>
+      {rules.isLoading ? <StackSkeleton /> : null}
       <form
         className="flex gap-2"
         onSubmit={(event) => {
@@ -878,6 +889,7 @@ function AdminPayouts() {
     <div className="space-y-3">
       <h1 className="serif text-4xl">Payouts</h1>
       <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={reference} onChange={(event) => setReference(event.target.value)} />
+      {payouts.isLoading ? <StackSkeleton rows={4} /> : null}
       {payouts.data?.map((payout) => (
         <article key={payout.id} className="panel flex flex-wrap items-center justify-between gap-2 p-3">
           <span>

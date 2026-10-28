@@ -124,19 +124,36 @@
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+  button:not(:disabled) {
+    cursor: pointer;
   }
+}
+
+/* Locale-aware stacks: Latin display fonts lack Khmer/CJK glyphs. */
+:root {
+  --font-zh: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: var(--font-outfit), system-ui, sans-serif;
+  --font-display: var(--font-serif), Georgia, serif;
+}
+html[data-locale="km"] {
+  --font-body: var(--font-khmer), var(--font-outfit), system-ui, sans-serif;
+  --font-display: var(--font-khmer), var(--font-serif), system-ui, sans-serif;
+}
+html[data-locale="zh"] {
+  --font-body: var(--font-zh), var(--font-outfit), system-ui, sans-serif;
+  --font-display: var(--font-zh), var(--font-serif), system-ui, sans-serif;
 }
 
 .bazaar {
   background-image:
     radial-gradient(1200px 500px at 10% -10%, rgba(198, 161, 91, 0.18), transparent 55%),
     radial-gradient(900px 400px at 110% 0%, rgba(184, 87, 42, 0.08), transparent 50%);
+  font-family: var(--font-body);
 }
 .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
-.serif { font-family: var(--font-serif), Georgia, serif; }
-.kh { font-family: var(--font-khmer), sans-serif; }
+.serif { font-family: var(--font-display); }
+.kh { font-family: var(--font-khmer), var(--font-body); }
+.zh { font-family: var(--font-zh); }
 .copper { color: #b8572a; }
 .panel { background: #fffcf7; border: 1px solid #e2d8c8; border-radius: 18px; }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }

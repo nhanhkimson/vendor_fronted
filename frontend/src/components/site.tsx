@@ -5,15 +5,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/providers";
+import { Skeleton } from "@/components/ui/skeleton";
 import { browserApi, unwrap } from "@/lib/api";
 import { readGuestCart } from "@/lib/guest-cart";
 import { money } from "@/lib/format";
+import { LanguageSwitcher, useI18n } from "@/lib/i18n";
 import type { components } from "@/lib/api-types";
 
 type Card = components["schemas"]["ProductCard"];
 
 export function SiteHeader() {
-  const { me, refresh } = useSession();
+  const { me, loading, refresh } = useSession();
+  const { t } = useI18n();
   const path = usePathname();
   const router = useRouter();
   const [count, setCount] = useState(0);
@@ -43,12 +46,12 @@ export function SiteHeader() {
   }
 
   const links = [
-    ["/", "Shop"],
-    ["/shops", "Shops"],
-    ["/reviews", "Reviews"],
-    ["/sell", "Sell"],
-    ["/guide", "Guide"],
-  ];
+    ["/", t.nav.shop],
+    ["/shops", t.nav.shops],
+    ["/reviews", t.nav.reviews],
+    ["/sell", t.nav.sell],
+    ["/guide", t.nav.guide],
+  ] as const;
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#e2d8c8] bg-[#f4eee4]/90 backdrop-blur">
@@ -67,6 +70,7 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
+        <LanguageSwitcher />
         <form
           className="hidden sm:block"
           onSubmit={(event) => {
@@ -75,23 +79,26 @@ export function SiteHeader() {
             router.push(`/search?q=${encodeURIComponent(String(data.get("q") || ""))}`);
           }}
         >
-          <input name="q" placeholder="Search makers" className="rounded-full border border-[#e2d8c8] bg-white px-4 py-2 text-sm" />
+          <input name="q" placeholder={t.nav.search} className="rounded-full border border-[#e2d8c8] bg-white px-4 py-2 text-sm" />
         </form>
         <Link href="/cart" className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2 text-sm">
-          Cart{count ? ` ${count}` : ""}
+          {t.nav.cart}
+          {count ? ` ${count}` : ""}
         </Link>
-        {me ? (
+        {loading ? (
+          <Skeleton className="h-9 w-24 rounded-full" />
+        ) : me ? (
           <>
             <Link href={me.home} className="rounded-full bg-[#24362c] px-3 py-2 text-sm text-[#f6efe3]">
               {me.name}
             </Link>
             <button onClick={() => void signOut()} className="text-sm text-[#6b6258]">
-              Sign out
+              {t.nav.signOut}
             </button>
           </>
         ) : (
           <Link href="/login" className="rounded-full bg-[#b8572a] px-3 py-2 text-sm text-white">
-            Sign in
+            {t.nav.signIn}
           </Link>
         )}
       </div>
@@ -100,12 +107,13 @@ export function SiteHeader() {
 }
 
 export function SiteFooter() {
+  const { t } = useI18n();
   return (
     <footer className="mt-16 border-t border-[#e2d8c8] py-8 text-sm text-[#6b6258]">
       <div className="wrap flex flex-wrap justify-between gap-3">
         <p className="serif text-2xl text-[#171411]">Bazaar</p>
-        <p>Independent shops. One checkout. Commission frozen at the moment you pay.</p>
-        <Link href="/about">About</Link>
+        <p>{t.footer.tagline}</p>
+        <Link href="/about">{t.nav.about}</Link>
       </div>
     </footer>
   );

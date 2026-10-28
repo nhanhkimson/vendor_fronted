@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { TableSkeleton } from "@/components/skeletons";
 import { ApiError } from "@/lib/api";
 
 export function Records<T extends object>({
@@ -26,7 +27,7 @@ export function Records<T extends object>({
         <h1 className="serif text-4xl">{title}</h1>
         {hint ? <p className="mt-1 text-sm text-[#6b6258]">{hint}</p> : null}
       </div>
-      {query.isLoading ? <p>Loading…</p> : null}
+      {query.isLoading ? <TableSkeleton columns={columns.length + (render ? 1 : 0)} /> : null}
       {query.error ? <p className="text-[#9f2d3a]">{query.error instanceof ApiError ? query.error.message : "Could not load this list."}</p> : null}
       {query.data ? (
         <div className="panel overflow-x-auto">

@@ -7,15 +7,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useSession } from "@/components/providers";
+import { CartSkeleton, CheckoutSkeleton, StackSkeleton } from "@/components/skeletons";
 import { ApiError, browserApi, unwrap } from "@/lib/api";
 import type { components } from "@/lib/api-types";
 import { money } from "@/lib/format";
 import { addGuestLine, clearGuestCart, readGuestCart } from "@/lib/guest-cart";
+import { useI18n } from "@/lib/i18n";
 
 type Product = components["schemas"]["ProductDetail"];
 
 export function AddToCart({ product }: { product: Product }) {
   const { me } = useSession();
+  const { t } = useI18n();
   const [variantId, setVariantId] = useState(product.variants[0]?.id ?? "");
   const variant = product.variants.find((item) => item.id === variantId) ?? product.variants[0];
 
@@ -25,14 +28,14 @@ export function AddToCart({ product }: { product: Product }) {
       try {
         await unwrap(browserApi.POST("/api/cart/items", { body: { variant_id: variant.id, qty: 1 } }));
         window.dispatchEvent(new Event("bazaar-cart"));
-        toast.success("Added to your cart");
+        toast.success(t.product.added);
       } catch (error) {
-        toast.error(error instanceof ApiError ? error.message : "Could not add that item");
+        toast.error(error instanceof ApiError ? error.message : t.product.addFailed);
       }
       return;
     }
     if (me) {
-      toast.error("Sign in as a customer to shop");
+      toast.error(t.product.customerOnly);
       return;
     }
     addGuestLine({
@@ -42,7 +45,7 @@ export function AddToCart({ product }: { product: Product }) {
       price_cents: product.price_cents,
       image_url: product.image_url,
     });
-    toast.success("Saved in your guest cart");
+    toast.success(t.product.guestSaved);
   }
 
   return (
@@ -51,15 +54,15 @@ export function AddToCart({ product }: { product: Product }) {
         <select className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2" value={variantId} onChange={(event) => setVariantId(event.target.value)}>
           {product.variants.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.size} / {item.color} · {item.available} left
+              {item.size} / {item.color} · {item.available} {t.product.left}
             </option>
           ))}
         </select>
       ) : (
-        <p className="text-sm text-[#6b6258]">{variant ? `${variant.available} available` : "Sold out"}</p>
+        <p className="text-sm text-[#6b6258]">{variant ? `${variant.available} ${t.product.available}` : t.product.soldOut}</p>
       )}
       <button className="rounded-full bg-[#b8572a] px-4 py-2 text-white" onClick={() => void add()} disabled={!variant || variant.available < 1}>
-        Add to cart
+        {t.product.addToCart}
       </button>
     </div>
   );
@@ -67,6 +70,7 @@ export function AddToCart({ product }: { product: Product }) {
 
 export function CartScreen() {
   const { me, loading } = useSession();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -81,19 +85,21 @@ export function CartScreen() {
     return queryClient.invalidateQueries({ queryKey: ["cart"] });
   }
 
-  if (loading) return <p className="wrap py-8">Loading…</p>;
+  if (loading) return <CartSkeleton />;
 
   if (me?.kind !== "customer") {
     const lines = guest;
     return (
       <div className="wrap space-y-4 py-8">
-        <h1 className="serif text-5xl">Cart</h1>
-        {lines.length === 0 ? <p>Your cart is empty.</p> : null}
+        <h1 className="serif text-5xl">{t.cart.title}</h1>
+        {lines.length === 0 ? <p>{t.cart.empty}</p> : null}
         {lines.map((line) => (
           <div key={line.variant_id} className="panel flex items-center justify-between p-4">
             <div>
               <p>{line.title}</p>
-              <p className="text-sm text-[#6b6258]">{money(line.price_cents)} · qty {line.qty}</p>
+              <p className="text-sm text-[#6b6258]">
+                {money(line.price_cents)} · {t.cart.qty} {line.qty}
+              </p>
             </div>
             <button
               onClick={() => {
@@ -102,12 +108,12 @@ export function CartScreen() {
                 localStorage.setItem("bazaar.guestCart", JSON.stringify(next));
               }}
             >
-              Remove
+              {t.cart.remove}
             </button>
           </div>
         ))}
         <Link href="/login?next=/cart" className="inline-block rounded-full bg-[#24362c] px-4 py-2 text-[#f6efe3]">
-          Sign in to check out
+          {t.cart.signInToCheckout}
         </Link>
       </div>
     );
@@ -115,10 +121,11 @@ export function CartScreen() {
 
   return (
     <div className="wrap space-y-4 py-8">
-      <h1 className="serif text-5xl">Cart</h1>
+      <h1 className="serif text-5xl">{t.cart.title}</h1>
       <button className="text-sm text-[#6b6258]" onClick={() => void refresh()}>
-        {cartQuery.isLoading ? "Loading prices…" : "Refresh prices"}
+        {t.cart.refresh}
       </button>
+      {cartQuery.isLoading && !cart ? <StackSkeleton rows={2} /> : null}
       {cart?.groups.map((group) => (
         <section key={group.vendor_id} className="panel p-4">
           <h2>{group.vendor_name}</h2>
@@ -136,7 +143,7 @@ export function CartScreen() {
                   void unwrap(browserApi.DELETE("/api/cart/items/{line_id}", { params: { path: { line_id: line.id } } })).then(() => refresh())
                 }
               >
-                Remove
+                {t.cart.remove}
               </button>
             </div>
           ))}
@@ -148,22 +155,22 @@ export function CartScreen() {
           event.preventDefault();
           void unwrap(browserApi.POST("/api/cart/coupon", { body: { code } }))
             .then(() => refresh())
-            .catch((error: unknown) => toast.error(error instanceof ApiError ? error.message : "Coupon was not applied"));
+            .catch((error: unknown) => toast.error(error instanceof ApiError ? error.message : t.cart.couponFailed));
         }}
       >
-        <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="WELCOME10" className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2" />
-        <button className="rounded-full border border-[#e2d8c8] px-3">Apply</button>
+        <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="WELCOME10" className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2" aria-label={t.cart.coupon} />
+        <button className="rounded-full border border-[#e2d8c8] px-3">{t.cart.apply}</button>
       </form>
       {cart ? (
         <p>
-          Total {money(cart.total_cents)}
+          {t.cart.total} {money(cart.total_cents)}
           {cart.coupon_message ? ` · ${cart.coupon_message}` : ""}
         </p>
-      ) : (
-        <p>Open the cart to load live prices.</p>
+      ) : cartQuery.isLoading ? null : (
+        <p>{t.cart.empty}</p>
       )}
       <Link href="/checkout" className="inline-block rounded-full bg-[#b8572a] px-4 py-2 text-white">
-        Checkout
+        {t.cart.checkout}
       </Link>
     </div>
   );
@@ -171,6 +178,7 @@ export function CartScreen() {
 
 export function CheckoutScreen() {
   const { me, loading } = useSession();
+  const { t } = useI18n();
   const router = useRouter();
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -184,9 +192,14 @@ export function CheckoutScreen() {
   const [card, setCard] = useState("4242 4242 4242 4242");
   const [busy, setBusy] = useState(false);
 
-  if (loading) return <p className="wrap py-8">Loading…</p>;
-  if (!me) return <p className="wrap py-8"><Link href="/login?next=/checkout">Sign in</Link> to check out.</p>;
-  if (me.kind !== "customer") return <p className="wrap py-8">Checkout is for customer accounts.</p>;
+  if (loading) return <CheckoutSkeleton />;
+  if (!me)
+    return (
+      <p className="wrap py-8">
+        <Link href="/login?next=/checkout">{t.nav.signIn}</Link> {t.checkout.signInFirst}
+      </p>
+    );
+  if (me.kind !== "customer") return <p className="wrap py-8">{t.checkout.customersOnly}</p>;
 
   async function pay(event: React.FormEvent) {
     event.preventDefault();
@@ -200,10 +213,10 @@ export function CheckoutScreen() {
         }),
       );
       clearGuestCart();
-      toast.success(`Order ${order.id} is placed`);
+      toast.success(`Order ${order.id} ${t.checkout.placed}`);
       router.push(`/account/orders/${order.id}`);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Checkout failed");
+      toast.error(error instanceof ApiError ? error.message : t.checkout.failed);
     } finally {
       setBusy(false);
     }
@@ -211,23 +224,24 @@ export function CheckoutScreen() {
 
   return (
     <form className="wrap max-w-xl space-y-4 py-8" onSubmit={(event) => void pay(event)}>
-      <h1 className="serif text-5xl">Checkout</h1>
-      <p className="text-sm text-[#6b6258]">{cart ? `Total ${money(cart.total_cents)}` : cartQuery.isLoading ? "Loading the cart…" : "Your cart is empty."}</p>
+      <h1 className="serif text-5xl">{t.checkout.title}</h1>
+      {cartQuery.isLoading && !cart ? <StackSkeleton rows={1} /> : null}
+      <p className="text-sm text-[#6b6258]">{cart ? `${t.cart.total} ${money(cart.total_cents)}` : cartQuery.isLoading ? null : t.checkout.empty}</p>
       <label className="block">
-        Name
+        {t.checkout.name}
         <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={name} onChange={(event) => setShipName(event.target.value)} required />
       </label>
       <label className="block">
-        Address
+        {t.checkout.address}
         <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={shipAddress} onChange={(event) => setShipAddress(event.target.value)} required />
       </label>
       <label className="block">
-        Card
+        {t.checkout.card}
         <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={card} onChange={(event) => setCard(event.target.value)} required />
       </label>
-      <p className="text-sm text-[#6b6258]">4242 4242 4242 4242 is approved. 4000 0000 0000 0002 is declined and releases the stock.</p>
+      <p className="text-sm text-[#6b6258]">{t.checkout.cardHint}</p>
       <button disabled={busy} className="rounded-full bg-[#24362c] px-4 py-2 text-[#f6efe3]">
-        {busy ? "Paying…" : "Pay and place the order"}
+        {busy ? t.checkout.paying : t.checkout.pay}
       </button>
     </form>
   );
