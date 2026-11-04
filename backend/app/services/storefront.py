@@ -28,6 +28,7 @@ def visible():
         select(Product)
         .join(Vendor, Vendor.id == Product.vendor_id)
         .where(
+            Product.listing_status == "published",
             Product.active.is_(True),
             Product.archived_at.is_(None),
             Vendor.status == "active",

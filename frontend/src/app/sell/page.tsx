@@ -44,18 +44,18 @@ export default function SellPage() {
   return (
     <div className="wrap max-w-xl space-y-4 py-10">
       <h1 className="serif text-5xl">{t.sell.title}</h1>
-      <p className="text-[#6b6258]">{t.sell.intro}</p>
+      <p className="text-muted-foreground">{t.sell.intro}</p>
       {!me ? <p>{t.sell.signInFirst}</p> : null}
       <form className="space-y-3" onSubmit={(event) => void submit(event)}>
-        <input required placeholder={t.sell.shopName} className="w-full rounded-xl border border-[#e2d8c8] px-3 py-2" value={name} onChange={(event) => setName(event.target.value)} />
-        <input placeholder={t.sell.city} className="w-full rounded-xl border border-[#e2d8c8] px-3 py-2" value={city} onChange={(event) => setCity(event.target.value)} />
-        <input placeholder={t.sell.headline} className="w-full rounded-xl border border-[#e2d8c8] px-3 py-2" value={headline} onChange={(event) => setHeadline(event.target.value)} />
-        <textarea placeholder={t.sell.about} className="w-full rounded-xl border border-[#e2d8c8] px-3 py-2" value={about} onChange={(event) => setAbout(event.target.value)} />
-        <button className="rounded-full bg-[#24362c] px-4 py-2 text-[#f6efe3]" disabled={!me}>
+        <input required placeholder={t.sell.shopName} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={name} onChange={(event) => setName(event.target.value)} />
+        <input placeholder={t.sell.city} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={city} onChange={(event) => setCity(event.target.value)} />
+        <input placeholder={t.sell.headline} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={headline} onChange={(event) => setHeadline(event.target.value)} />
+        <textarea placeholder={t.sell.about} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={about} onChange={(event) => setAbout(event.target.value)} />
+        <button className="rounded-full bg-primary px-4 py-2 text-primary-foreground" disabled={!me}>
           {t.sell.open}
         </button>
       </form>
-      <p className="text-sm text-[#6b6258]">{t.sell.staffNote}</p>
+      <p className="text-sm text-muted-foreground">{t.sell.staffNote}</p>
     </div>
   );
 }

@@ -120,6 +120,26 @@ PAYOUT = Machine(
     },
 )
 
+PRODUCT = Machine(
+    "product",
+    "draft",
+    {
+        "draft": {"pending_review": "vendor submits", "archived": "archive"},
+        "pending_review": {
+            "published": "staff approve",
+            "rejected": "staff reject (reason)",
+            "draft": "vendor withdraws",
+            "archived": "archive",
+        },
+        "published": {
+            "pending_review": "material edit needs re-check",
+            "archived": "archive",
+        },
+        "rejected": {"draft": "vendor edits", "pending_review": "vendor resubmits", "archived": "archive"},
+        "archived": {"draft": "restore to draft"},
+    },
+)
+
 REVIEW = Machine(
     "review",
     "published",
@@ -140,7 +160,7 @@ DISPUTE = Machine(
     },
 )
 
-MACHINES = [VENDOR, ORDER, SUB_ORDER, PAYOUT, REVIEW, DISPUTE]
+MACHINES = [VENDOR, ORDER, SUB_ORDER, PAYOUT, PRODUCT, REVIEW, DISPUTE]
 
 CLOSED_SUB_ORDER = {"delivered", "cancelled", "refunded"}
 CANCELLABLE_SUB_ORDER = {"pending_acceptance", "accepted", "packing"}

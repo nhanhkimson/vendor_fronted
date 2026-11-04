@@ -202,6 +202,18 @@ def summary(ctx: Ctx) -> dict:
             "unread": _unread(db, ctx.user_id),
             "open_disputes": int(db.scalar(select(func.count()).select_from(Dispute).where(Dispute.vendor_id == ctx.vendor_id, Dispute.status == "open")) or 0),
             "low_stock": sum(1 for p in products if is_low(p)),
+            "pending_listings": int(
+                db.scalar(
+                    select(func.count())
+                    .select_from(Product)
+                    .where(
+                        Product.vendor_id == ctx.vendor_id,
+                        Product.listing_status.in_(("draft", "pending_review", "rejected")),
+                        Product.archived_at.is_(None),
+                    )
+                )
+                or 0
+            ),
             "waiting_messages": int(
                 db.scalar(
                     select(func.count()).select_from(Conversation).where(Conversation.vendor_id == ctx.vendor_id, Conversation.last_sender_role == "customer")
@@ -217,6 +229,14 @@ def summary(ctx: Ctx) -> dict:
         "open_orders": int(db.scalar(select(func.count()).select_from(Order).where(Order.status.in_(("paid", "partially_fulfilled", "fulfilled")))) or 0),
         "open_disputes": int(db.scalar(select(func.count()).select_from(Dispute).where(Dispute.status == "open")) or 0),
         "vendors_to_review": int(db.scalar(select(func.count()).select_from(Vendor).where(Vendor.status == "under_review", Vendor.deleted_at.is_(None))) or 0),
+        "listings_to_review": int(
+            db.scalar(
+                select(func.count())
+                .select_from(Product)
+                .where(Product.listing_status == "pending_review", Product.archived_at.is_(None))
+            )
+            or 0
+        ),
         "payouts_to_sign": int(
             db.scalar(select(func.count()).select_from(Payout).where(Payout.status.in_(("requested", "pending_second_approval")))) or 0
         ),

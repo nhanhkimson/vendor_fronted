@@ -11,9 +11,10 @@ from app.core.db import utcnow
 from app.core.deps import Ctx
 from app.core.errors import Conflict, NotFound, Unprocessable
 from app.core.util import new_id, slugify, snapshot
+from app.domain.states import PRODUCT
 from app.models import Category, OrderLine, Product, ProductTag, StockItem, Tag, Variant, Vendor
 from app.services import files
-from app.services.events import Notice, emit, vendor_staff_ids
+from app.services.events import Notice, emit, users_with_permission, vendor_staff_ids
 from app.services.present import (
     available,
     categories_by_id,
@@ -25,8 +26,19 @@ from app.services.present import (
 )
 from app.services.tenancy import owned
 
-PRODUCT_FIELDS = ["title", "description", "price_cents", "category_id", "low_stock_threshold", "active"]
+PRODUCT_FIELDS = [
+    "title",
+    "description",
+    "price_cents",
+    "category_id",
+    "low_stock_threshold",
+    "active",
+    "listing_status",
+    "listing_reason",
+]
+MATERIAL_FIELDS = ("title", "description", "price_cents")
 CSV_COLUMNS = ["product_id", "title", "description", "price", "category", "tags", "sku", "size", "color", "stock", "active"]
+LISTING_STATUSES = ("draft", "pending_review", "published", "rejected", "archived")
 
 
 # Products ------------------------------------------------------------------------
@@ -59,12 +71,18 @@ def list_products(db: Session, *, vendor_id: str | None, q: str | None, status: 
         query = query.where(or_(func.lower(Product.title).like(like), Product.id == q.upper()))
     if category:
         query = query.where(Product.category_id.in_(descendants(categories_by_id(db), category)))
-    if status == "archived":
-        query = query.where(Product.archived_at.is_not(None))
+    if status in LISTING_STATUSES:
+        query = query.where(Product.listing_status == status)
+        if status != "archived":
+            query = query.where(Product.archived_at.is_(None))
     elif status == "inactive":
         query = query.where(Product.active.is_(False), Product.archived_at.is_(None))
     elif status in ("active", "low"):
-        query = query.where(Product.active.is_(True), Product.archived_at.is_(None))
+        query = query.where(
+            Product.listing_status == "published",
+            Product.active.is_(True),
+            Product.archived_at.is_(None),
+        )
     else:
         query = query.where(Product.archived_at.is_(None))
     products = list(db.scalars(query).all())
@@ -122,6 +140,18 @@ def _add_variant(db: Session, product: Product, vendor: Vendor, sku: str, size: 
     return variant
 
 
+def _set_listing(product: Product, target: str, reason: str | None = None) -> None:
+    PRODUCT.check(product.listing_status, target)
+    product.listing_status = target
+    product.listing_reason = reason
+    product.active = target == "published"
+    if target == "archived":
+        product.archived_at = product.archived_at or utcnow()
+    elif target != "archived":
+        product.archived_at = None
+    product.updated_at = utcnow()
+
+
 def create_product(ctx: Ctx, body) -> dict:
     db = ctx.db
     vendor = db.get(Vendor, ctx.vendor_id)
@@ -135,7 +165,8 @@ def create_product(ctx: Ctx, body) -> dict:
         description=body.description,
         price_cents=body.price_cents,
         low_stock_threshold=body.low_stock_threshold,
-        active=body.active,
+        active=False,
+        listing_status="draft",
     )
     db.add(product)
     db.flush()
@@ -163,37 +194,119 @@ def create_product(ctx: Ctx, body) -> dict:
 def update_product(ctx: Ctx, product_id: str, body) -> dict:
     db = ctx.db
     product = get_product(ctx, product_id)
-    if product.archived_at:
+    if product.listing_status == "archived" or product.archived_at:
         raise Conflict("This product is archived. Restore it before editing.", code="product_archived")
     changes = body.model_dump(exclude_unset=True)
     if "category_id" in changes:
         _check_category(db, changes["category_id"])
     before = snapshot(product, PRODUCT_FIELDS)
+    material = any(field in changes and changes[field] != getattr(product, field) for field in MATERIAL_FIELDS)
     for field, value in changes.items():
         setattr(product, field, value)
+    if material and product.listing_status == "published":
+        _set_listing(product, "pending_review", "Material edit needs staff review")
+        emit(
+            db,
+            "product.pending_review",
+            {"product_id": product.id},
+            [
+                Notice(uid, f"{product.title} needs listing review after an edit", "/admin/listings")
+                for uid in users_with_permission(db, "product:moderate")
+            ],
+        )
     product.updated_at = utcnow()
     ctx.audit("product", "update", "product", product.id, before=before, after=snapshot(product, PRODUCT_FIELDS))
     ctx.commit()
     return one(db, product)
 
 
+def submit_listing(ctx: Ctx, product_id: str) -> dict:
+    db = ctx.db
+    product = get_product(ctx, product_id)
+    before = snapshot(product, PRODUCT_FIELDS)
+    _set_listing(product, "pending_review")
+    ctx.audit("product", "submit", "product", product.id, before=before, after=snapshot(product, PRODUCT_FIELDS))
+    emit(
+        db,
+        "product.pending_review",
+        {"product_id": product.id},
+        [
+            Notice(uid, f"{product.title} is waiting for listing approval", "/admin/listings")
+            for uid in users_with_permission(db, "product:moderate")
+        ],
+    )
+    ctx.commit()
+    return one(db, product)
+
+
+def approve_listing(ctx: Ctx, product_id: str) -> dict:
+    db = ctx.db
+    product = db.get(Product, product_id)
+    if product is None:
+        raise NotFound("Product", product_id)
+    before = snapshot(product, PRODUCT_FIELDS)
+    _set_listing(product, "published")
+    ctx.audit("product", "approve", "product", product.id, before=before, after=snapshot(product, PRODUCT_FIELDS))
+    emit(
+        db,
+        "product.published",
+        {"product_id": product.id},
+        [Notice(uid, f"{product.title} is live on the website", "/seller/products") for uid in vendor_staff_ids(db, product.vendor_id)],
+    )
+    ctx.commit()
+    return one(db, product)
+
+
+def reject_listing(ctx: Ctx, product_id: str, reason: str) -> dict:
+    db = ctx.db
+    product = db.get(Product, product_id)
+    if product is None:
+        raise NotFound("Product", product_id)
+    if not reason.strip():
+        raise Unprocessable("A rejection reason is required", code="reason_required")
+    before = snapshot(product, PRODUCT_FIELDS)
+    _set_listing(product, "rejected", reason.strip())
+    ctx.audit(
+        "product",
+        "reject",
+        "product",
+        product.id,
+        before=before,
+        after=snapshot(product, PRODUCT_FIELDS),
+        reason=reason.strip(),
+    )
+    emit(
+        db,
+        "product.rejected",
+        {"product_id": product.id, "reason": reason.strip()},
+        [
+            Notice(uid, f"{product.title} was rejected: {reason.strip()}", "/seller/products")
+            for uid in vendor_staff_ids(db, product.vendor_id)
+        ],
+    )
+    ctx.commit()
+    return one(db, product)
+
+
 def archive_product(ctx: Ctx, product_id: str) -> None:
     product = get_product(ctx, product_id)
-    if product.archived_at:
+    if product.listing_status == "archived" or product.archived_at:
         raise Conflict("This product is already archived", code="product_archived")
-    product.archived_at = utcnow()
-    product.active = False
-    ctx.audit("product", "delete", "product", product.id, before={"active": True, "archived_at": None}, after={"active": False, "archived_at": product.archived_at})
+    before = snapshot(product, PRODUCT_FIELDS)
+    _set_listing(product, "archived")
+    ctx.audit("product", "delete", "product", product.id, before=before, after=snapshot(product, PRODUCT_FIELDS))
     ctx.commit()
 
 
 def restore_product(ctx: Ctx, product_id: str) -> dict:
     product = get_product(ctx, product_id)
-    if not product.archived_at:
+    if product.listing_status != "archived" and not product.archived_at:
         raise Conflict("This product is not archived", code="not_archived")
-    before = product.archived_at
-    product.archived_at = None
-    ctx.audit("product", "restore", "product", product.id, before={"archived_at": before}, after={"archived_at": None, "active": product.active})
+    before = snapshot(product, PRODUCT_FIELDS)
+    if product.listing_status != "archived":
+        product.listing_status = "archived"
+    _set_listing(product, "draft")
+    ctx.audit("product", "restore", "product", product.id, before=before, after=snapshot(product, PRODUCT_FIELDS))
     ctx.commit()
     return one(ctx.db, product)
 
@@ -203,12 +316,22 @@ def moderate_product(ctx: Ctx, product_id: str, active: bool, reason: str, categ
     product = db.get(Product, product_id)
     if product is None:
         raise NotFound("Product", product_id)
+    if product.listing_status != "published":
+        raise Conflict("Only published listings can be hidden or re-listed this way", code="not_published")
     _check_category(db, category_id)
-    before = snapshot(product, ["active", "category_id"])
+    before = snapshot(product, ["active", "category_id", "listing_status"])
     product.active = active
     if category_id:
         product.category_id = category_id
-    ctx.audit("product", "moderate", "product", product.id, before=before, after=snapshot(product, ["active", "category_id"]), reason=reason)
+    ctx.audit(
+        "product",
+        "moderate",
+        "product",
+        product.id,
+        before=before,
+        after=snapshot(product, ["active", "category_id", "listing_status"]),
+        reason=reason,
+    )
     if not active:
         emit(
             db,
@@ -522,7 +645,12 @@ def category_tree(db: Session, active_only: bool = True) -> list[dict]:
     if active_only:
         query = (
             query.join(Vendor, Vendor.id == Product.vendor_id)
-            .where(Product.active.is_(True), Product.archived_at.is_(None), Vendor.status == "active")
+            .where(
+                Product.listing_status == "published",
+                Product.active.is_(True),
+                Product.archived_at.is_(None),
+                Vendor.status == "active",
+            )
         )
     direct = {cid: int(n) for cid, n in db.execute(query) if cid}
     result = []

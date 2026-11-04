@@ -4,6 +4,7 @@ from app.core.deps import Ctx, audit_meta, require
 from app.schemas.catalogue import (
     ImportResult,
     InventoryRow,
+    ListingDecisionIn,
     ModerateProductIn,
     ProductCreate,
     ProductOut,
@@ -17,7 +18,10 @@ from app.services import catalogue
 
 router = APIRouter(tags=["M4 Products & Inventory"])
 
-STATUS = Query(default=None, description="active, inactive, low or archived")
+STATUS = Query(
+    default=None,
+    description="draft, pending_review, published, rejected, archived, active, inactive, or low",
+)
 
 
 # Vendor (own shop only) --------------------------------------------------------------
@@ -67,7 +71,8 @@ def import_products(
     "/api/seller/products",
     response_model=ProductOut,
     status_code=201,
-    summary="List a new product",
+    summary="Create a draft product",
+    description="Returns ProductOut including listing_status=draft. Submit via POST .../submit before it can go live.",
     openapi_extra=audit_meta("product", "create"),
 )
 def create_product(body: ProductCreate, ctx: Ctx = Depends(require("product:create", "vendor"))):
@@ -83,6 +88,7 @@ def my_product(product_id: str, ctx: Ctx = Depends(require("product:read", "vend
     "/api/seller/products/{product_id}",
     response_model=ProductOut,
     summary="Edit title, price, category, threshold or visibility",
+    description="Returns ProductOut with listing_status. Material edits on a published listing move it to pending_review.",
     openapi_extra=audit_meta("product", "update"),
 )
 def update_product(product_id: str, body: ProductUpdate, ctx: Ctx = Depends(require("product:update", "vendor"))):
@@ -108,6 +114,16 @@ def archive_product(product_id: str, ctx: Ctx = Depends(require("product:delete"
 )
 def restore_product(product_id: str, ctx: Ctx = Depends(require("product:update", "vendor"))):
     return catalogue.restore_product(ctx, product_id)
+
+
+@router.post(
+    "/api/seller/products/{product_id}/submit",
+    response_model=ProductOut,
+    summary="Submit a draft or rejected listing for staff review",
+    openapi_extra=audit_meta("product", "submit"),
+)
+def submit_listing(product_id: str, ctx: Ctx = Depends(require("product:update", "vendor"))):
+    return catalogue.submit_listing(ctx, product_id)
 
 
 @router.post(
@@ -175,11 +191,40 @@ def all_products(
 @router.post(
     "/api/products/{product_id}/moderate",
     response_model=ProductOut,
-    summary="Hide or re-list a product, or fix its category (reason required)",
+    summary="Hide or re-list a published product, or fix its category (reason required)",
     openapi_extra=audit_meta("product", "moderate"),
 )
 def moderate(product_id: str, body: ModerateProductIn, ctx: Ctx = Depends(require("product:update"))):
     return catalogue.moderate_product(ctx, product_id, body.active, body.reason, body.category_id)
+
+
+@router.get(
+    "/api/listings/pending",
+    response_model=list[ProductOut],
+    summary="Listings waiting for maker-checker approval",
+)
+def pending_listings(ctx: Ctx = Depends(require("product:moderate"))):
+    return catalogue.list_products(ctx.db, vendor_id=None, q=None, status="pending_review", category=None)
+
+
+@router.post(
+    "/api/listings/{product_id}/approve",
+    response_model=ProductOut,
+    summary="Approve a pending listing (goes live on the website)",
+    openapi_extra=audit_meta("product", "approve"),
+)
+def approve_listing(product_id: str, ctx: Ctx = Depends(require("product:moderate"))):
+    return catalogue.approve_listing(ctx, product_id)
+
+
+@router.post(
+    "/api/listings/{product_id}/reject",
+    response_model=ProductOut,
+    summary="Reject a pending listing (reason required)",
+    openapi_extra=audit_meta("product", "reject"),
+)
+def reject_listing(product_id: str, body: ListingDecisionIn, ctx: Ctx = Depends(require("product:moderate"))):
+    return catalogue.reject_listing(ctx, product_id, body.reason)
 
 
 @router.get("/api/inventory", response_model=list[InventoryRow], summary="Stock across shops")

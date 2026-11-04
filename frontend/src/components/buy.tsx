@@ -8,6 +8,10 @@ import { toast } from "sonner";
 
 import { useSession } from "@/components/providers";
 import { CartSkeleton, CheckoutSkeleton, StackSkeleton } from "@/components/skeletons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ApiError, browserApi, unwrap } from "@/lib/api";
 import type { components } from "@/lib/api-types";
 import { money } from "@/lib/format";
@@ -51,19 +55,24 @@ export function AddToCart({ product }: { product: Product }) {
   return (
     <div className="space-y-3">
       {product.variants.length > 1 ? (
-        <select className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2" value={variantId} onChange={(event) => setVariantId(event.target.value)}>
-          {product.variants.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.size} / {item.color} · {item.available} {t.product.left}
-            </option>
-          ))}
-        </select>
+        <Select value={variantId} onValueChange={setVariantId}>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {product.variants.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.size} / {item.color} · {item.available} {t.product.left}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
-        <p className="text-sm text-[#6b6258]">{variant ? `${variant.available} ${t.product.available}` : t.product.soldOut}</p>
+        <p className="text-sm text-muted-foreground">{variant ? `${variant.available} ${t.product.available}` : t.product.soldOut}</p>
       )}
-      <button className="rounded-full bg-[#b8572a] px-4 py-2 text-white" onClick={() => void add()} disabled={!variant || variant.available < 1}>
+      <Button onClick={() => void add()} disabled={!variant || variant.available < 1}>
         {t.product.addToCart}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -97,11 +106,13 @@ export function CartScreen() {
           <div key={line.variant_id} className="panel flex items-center justify-between p-4">
             <div>
               <p>{line.title}</p>
-              <p className="text-sm text-[#6b6258]">
+              <p className="text-sm text-muted-foreground">
                 {money(line.price_cents)} · {t.cart.qty} {line.qty}
               </p>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 const next = readGuestCart().filter((item) => item.variant_id !== line.variant_id);
                 setGuest(next);
@@ -109,22 +120,24 @@ export function CartScreen() {
               }}
             >
               {t.cart.remove}
-            </button>
+            </Button>
           </div>
         ))}
-        <Link href="/login?next=/cart" className="inline-block rounded-full bg-[#24362c] px-4 py-2 text-[#f6efe3]">
-          {t.cart.signInToCheckout}
-        </Link>
+        <Button asChild>
+          <Link href="/login?next=/cart">{t.cart.signInToCheckout}</Link>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="wrap space-y-4 py-8">
-      <h1 className="serif text-5xl">{t.cart.title}</h1>
-      <button className="text-sm text-[#6b6258]" onClick={() => void refresh()}>
-        {t.cart.refresh}
-      </button>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="serif text-5xl">{t.cart.title}</h1>
+        <Button variant="ghost" size="sm" onClick={() => void refresh()}>
+          {t.cart.refresh}
+        </Button>
+      </div>
       {cartQuery.isLoading && !cart ? <StackSkeleton rows={2} /> : null}
       {cart?.groups.map((group) => (
         <section key={group.vendor_id} className="panel p-4">
@@ -133,24 +146,26 @@ export function CartScreen() {
             <div key={line.id} className="mt-3 flex justify-between gap-3">
               <div>
                 <p>{line.title}</p>
-                <p className="text-sm text-[#6b6258]">
+                <p className="text-sm text-muted-foreground">
                   {line.color} · {money(line.unit_price_cents)} · {line.qty}
                   {line.problem ? ` · ${line.problem}` : ""}
                 </p>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() =>
                   void unwrap(browserApi.DELETE("/api/cart/items/{line_id}", { params: { path: { line_id: line.id } } })).then(() => refresh())
                 }
               >
                 {t.cart.remove}
-              </button>
+              </Button>
             </div>
           ))}
         </section>
       ))}
       <form
-        className="flex gap-2"
+        className="flex max-w-md gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           void unwrap(browserApi.POST("/api/cart/coupon", { body: { code } }))
@@ -158,8 +173,10 @@ export function CartScreen() {
             .catch((error: unknown) => toast.error(error instanceof ApiError ? error.message : t.cart.couponFailed));
         }}
       >
-        <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="WELCOME10" className="rounded-full border border-[#e2d8c8] bg-white px-3 py-2" aria-label={t.cart.coupon} />
-        <button className="rounded-full border border-[#e2d8c8] px-3">{t.cart.apply}</button>
+        <Input value={code} onChange={(event) => setCode(event.target.value)} placeholder="WELCOME10" aria-label={t.cart.coupon} />
+        <Button type="submit" variant="outline">
+          {t.cart.apply}
+        </Button>
       </form>
       {cart ? (
         <p>
@@ -169,9 +186,9 @@ export function CartScreen() {
       ) : cartQuery.isLoading ? null : (
         <p>{t.cart.empty}</p>
       )}
-      <Link href="/checkout" className="inline-block rounded-full bg-[#b8572a] px-4 py-2 text-white">
-        {t.cart.checkout}
-      </Link>
+      <Button asChild>
+        <Link href="/checkout">{t.cart.checkout}</Link>
+      </Button>
     </div>
   );
 }
@@ -196,7 +213,10 @@ export function CheckoutScreen() {
   if (!me)
     return (
       <p className="wrap py-8">
-        <Link href="/login?next=/checkout">{t.nav.signIn}</Link> {t.checkout.signInFirst}
+        <Button asChild variant="link" className="px-0">
+          <Link href="/login?next=/checkout">{t.nav.signIn}</Link>
+        </Button>{" "}
+        {t.checkout.signInFirst}
       </p>
     );
   if (me.kind !== "customer") return <p className="wrap py-8">{t.checkout.customersOnly}</p>;
@@ -226,23 +246,23 @@ export function CheckoutScreen() {
     <form className="wrap max-w-xl space-y-4 py-8" onSubmit={(event) => void pay(event)}>
       <h1 className="serif text-5xl">{t.checkout.title}</h1>
       {cartQuery.isLoading && !cart ? <StackSkeleton rows={1} /> : null}
-      <p className="text-sm text-[#6b6258]">{cart ? `${t.cart.total} ${money(cart.total_cents)}` : cartQuery.isLoading ? null : t.checkout.empty}</p>
-      <label className="block">
-        {t.checkout.name}
-        <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={name} onChange={(event) => setShipName(event.target.value)} required />
-      </label>
-      <label className="block">
-        {t.checkout.address}
-        <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={shipAddress} onChange={(event) => setShipAddress(event.target.value)} required />
-      </label>
-      <label className="block">
-        {t.checkout.card}
-        <input className="mt-1 w-full rounded-xl border border-[#e2d8c8] bg-white px-3 py-2" value={card} onChange={(event) => setCard(event.target.value)} required />
-      </label>
-      <p className="text-sm text-[#6b6258]">{t.checkout.cardHint}</p>
-      <button disabled={busy} className="rounded-full bg-[#24362c] px-4 py-2 text-[#f6efe3]">
+      <p className="text-sm text-muted-foreground">{cart ? `${t.cart.total} ${money(cart.total_cents)}` : cartQuery.isLoading ? null : t.checkout.empty}</p>
+      <div className="space-y-2">
+        <Label htmlFor="ship-name">{t.checkout.name}</Label>
+        <Input id="ship-name" value={name} onChange={(event) => setShipName(event.target.value)} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="ship-address">{t.checkout.address}</Label>
+        <Input id="ship-address" value={shipAddress} onChange={(event) => setShipAddress(event.target.value)} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="card">{t.checkout.card}</Label>
+        <Input id="card" value={card} onChange={(event) => setCard(event.target.value)} required />
+      </div>
+      <p className="text-sm text-muted-foreground">{t.checkout.cardHint}</p>
+      <Button type="submit" disabled={busy}>
         {busy ? t.checkout.paying : t.checkout.pay}
-      </button>
+      </Button>
     </form>
   );
 }

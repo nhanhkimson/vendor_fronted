@@ -210,6 +210,8 @@ class ProductOut(Schema):
     low_stock_threshold: int
     image_url: str | None
     active: bool
+    listing_status: str
+    listing_reason: str | None = None
     archived_at: datetime | None
     tags: list[TagOut]
     variants: list[VariantOut]
@@ -230,7 +232,7 @@ class ProductCreate(Schema):
     low_stock_threshold: int = Field(default=3, ge=0, le=10000)
     tag_ids: list[str] = Field(default_factory=list, max_length=12)
     variants: list[VariantIn] = Field(default_factory=list, max_length=50)
-    active: bool = True
+    active: bool = False
 
 
 class ProductUpdate(Schema):
@@ -246,6 +248,10 @@ class ModerateProductIn(Schema):
     active: bool
     reason: str = Field(min_length=3, max_length=255)
     category_id: str | None = None
+
+
+class ListingDecisionIn(Schema):
+    reason: str = Field(default="", max_length=255)
 
 
 class StockAdjustIn(Schema):

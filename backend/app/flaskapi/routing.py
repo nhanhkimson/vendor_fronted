@@ -281,8 +281,17 @@ def _invoke_callable(
                 raise _validation_error(exc) from exc
             continue
 
+        # Plain scalar defaults behave like FastAPI query params (e.g. include_ended: bool = False).
         if default is not inspect.Parameter.empty:
-            kwargs[name] = default
+            bare = ann
+            if get_origin(ann) is not None:
+                args = [a for a in get_args(ann) if a is not type(None)]
+                bare = args[0] if len(args) == 1 else ann
+            if bare in (bool, int, float, str):
+                raw = flask_request.args.get(name)
+                kwargs[name] = default if raw is None else _coerce(raw, bare)
+            else:
+                kwargs[name] = default
             continue
 
         raise BadRequest(f"Cannot resolve parameter '{name}' for {fn.__name__}")

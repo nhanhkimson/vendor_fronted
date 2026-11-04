@@ -77,8 +77,10 @@ class SummaryOut(Schema):
     open_disputes: int = 0
     low_stock: int = 0
     waiting_messages: int = 0
+    pending_listings: int = 0
     available_cents: int = 0
     eligible_payouts: int = 0
     vendors_to_review: int = 0
+    listings_to_review: int = 0
     payouts_to_sign: int = 0
     flagged_reviews: int = 0

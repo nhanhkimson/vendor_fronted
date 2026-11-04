@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { TableSkeleton } from "@/components/skeletons";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
 
 export function Records<T extends object>({
@@ -12,6 +14,7 @@ export function Records<T extends object>({
   load,
   columns,
   render,
+  actions,
 }: {
   title: string;
   hint?: string;
@@ -19,44 +22,57 @@ export function Records<T extends object>({
   load: () => Promise<T[]>;
   columns: { key: string; label: string; render?: (row: T) => React.ReactNode }[];
   render?: (row: T) => React.ReactNode;
+  actions?: React.ReactNode;
 }) {
   const query = useQuery({ queryKey, queryFn: load });
   return (
     <section className="space-y-4">
-      <div>
-        <h1 className="serif text-4xl">{title}</h1>
-        {hint ? <p className="mt-1 text-sm text-[#6b6258]">{hint}</p> : null}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="serif text-4xl">{title}</h1>
+          {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
+        </div>
+        {actions}
       </div>
       {query.isLoading ? <TableSkeleton columns={columns.length + (render ? 1 : 0)} /> : null}
-      {query.error ? <p className="text-[#9f2d3a]">{query.error instanceof ApiError ? query.error.message : "Could not load this list."}</p> : null}
+      {query.error ? (
+        <p className="text-sm text-destructive">{query.error instanceof ApiError ? query.error.message : "Could not load this list."}</p>
+      ) : null}
       {query.data ? (
-        <div className="panel overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#e2d8c8] text-[#6b6258]">
-              <tr>
-                {columns.map((column) => (
-                  <th key={column.key} className="px-3 py-3 font-medium">
-                    {column.label}
-                  </th>
-                ))}
-                {render ? <th className="px-3 py-3" /> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.map((row, index) => (
-                <tr key={index} className="border-b border-[#e2d8c8] last:border-0">
+        <Card className="py-0">
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
                   {columns.map((column) => (
-                    <td key={column.key} className="px-3 py-3 align-top">
-                      {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? "—")}
-                    </td>
+                    <TableHead key={column.key}>{column.label}</TableHead>
                   ))}
-                  {render ? <td className="px-3 py-3">{render(row)}</td> : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {query.data.length === 0 ? <p className="p-4 text-sm text-[#6b6258]">Nothing here yet.</p> : null}
-        </div>
+                  {render ? <TableHead className="w-[1%] whitespace-nowrap">Actions</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length + (render ? 1 : 0)} className="h-24 text-center text-muted-foreground">
+                      Nothing here yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  query.data.map((row, index) => (
+                    <TableRow key={index}>
+                      {columns.map((column) => (
+                        <TableCell key={column.key}>
+                          {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? "—")}
+                        </TableCell>
+                      ))}
+                      {render ? <TableCell className="text-right">{render(row)}</TableCell> : null}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       ) : null}
     </section>
   );

@@ -4081,6 +4081,13 @@ export interface components {
             image_url: string | null;
             /** Active */
             active: boolean;
+            /**
+             * Listing Status
+             * @description draft, pending_review, published, rejected, archived
+             */
+            listing_status: string;
+            /** Listing Reason */
+            listing_reason?: string | null;
             /** Archived At */
             archived_at: string | null;
             /** Tags */
@@ -4884,6 +4891,11 @@ export interface components {
              */
             waiting_messages: number;
             /**
+             * Pending Listings
+             * @default 0
+             */
+            pending_listings: number;
+            /**
              * Available Cents
              * @default 0
              */
@@ -4898,6 +4910,11 @@ export interface components {
              * @default 0
              */
             vendors_to_review: number;
+            /**
+             * Listings To Review
+             * @default 0
+             */
+            listings_to_review: number;
             /**
              * Payouts To Sign
              * @default 0

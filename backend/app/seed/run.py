@@ -69,16 +69,16 @@ STEP_OFFSET = {
     "delivered": timedelta(days=5),
 }
 STEP_NOTE = {
-    "accepted": "Vendor accepted the order",
-    "packing": "Packing started",
-    "shipped": "Handed to the carrier",
-    "delivered": "Delivered to the buyer",
+    "accepted": "អ្នកលក់ទទួលការកម្មង់",
+    "packing": "ចាប់ផ្តើមវេចខ្ចប់",
+    "shipped": "ប្រគល់ឱ្យអ្នកដឹក",
+    "delivered": "ដឹកដល់អ្នកទិញ",
 }
-CARRIERS = {"US": "USPS", "CA": "Canada Post", "UK": "Royal Mail"}
+CARRIERS = {"KH": "Cambodia Post", "US": "USPS", "CA": "Canada Post", "UK": "Royal Mail"}
 ADDRESSES = {
-    "maya": "St. 240, Daun Penh, Phnom Penh, Cambodia",
-    "theo": "Rua Augusta 112, Lisbon, Portugal",
-    "priya": "12 Orchard Rd, Singapore",
+    "maya": "ផ្លូវ ២៤០ ដូនពេញ ភ្នំពេញ",
+    "theo": "ផ្លូវព្រះសុរាម្រិត ភ្នំពេញ",
+    "priya": "ផ្លូវសៀវភៅ សៀមរាប",
 }
 
 
@@ -204,7 +204,7 @@ class Seeder:
             vendor = Vendor(
                 id=v["id"],
                 name=v["name"],
-                slug=slugify(v["name"]),
+                slug=v.get("slug") or slugify(v["name"]) or v["id"].lower(),
                 country=v["country"],
                 city=v["city"],
                 status=status,
@@ -320,6 +320,7 @@ class Seeder:
 
         for p in D.PRODUCTS:
             vendor = self.vendors[p["vendor"]]
+            listing_status = p.get("listing_status", "published")
             product = Product(
                 id=p["id"],
                 vendor_id=vendor.id,
@@ -329,12 +330,14 @@ class Seeder:
                 price_cents=p["price"] * 100,
                 low_stock_threshold=p["low"],
                 image_url=f"/media/products/{p['id']}.jpg",
-                active=True,
+                active=listing_status == "published",
+                listing_status=listing_status,
+                listing_reason=p.get("listing_reason"),
                 created_at=self.ago(days=self.rng.randint(60, 300)),
             )
             db.add(product)
             self.products[product.id] = product
-            variants = p.get("variants") or [(f"{p['id']}-1", f"{p['id']}-STD", "One size", "Natural", p["stock"])]
+            variants = p.get("variants") or [(f"{p['id']}-1", f"{p['id']}-STD", "ទំហំមួយ", "ធម្មជាតិ", p["stock"])]
             for variant_id, sku, size, color, _stock in variants:
                 variant = Variant(
                     id=variant_id,
@@ -437,7 +440,7 @@ class Seeder:
                 created_at=created,
             )
             if review_id == "R10":
-                review.vendor_response = "Thank you so much, it made my week. Jess"
+                review.vendor_response = "អរគុណខ្លាំងណាស់ ធ្វើឱ្យខ្ញុំរីករាយពេញសប្តាហ៍។ Jess"
                 review.vendor_responded_at = created + timedelta(days=1)
             self.db.add(review)
             self.db.add(
@@ -632,22 +635,22 @@ class Seeder:
                 buyer_id="maya",
                 vendor_id="V07",
                 reason="shipping_delay",
-                note="Tracking US-77310 has not moved for over a week.",
+                note="លេខតាមដាន KH-77310 មិនមានចលនាជាងមួយសប្តាហ៍។",
                 status="open",
                 created_at=self.ago(days=2),
             )
         )
         conversations = [
-            ("C-1", "maya", "V02", None, "Has my hair clip order shipped?", [("maya", "customer", "Hi! Has my order shipped yet? I need it by Friday.", 3)]),
+            ("C-1", "maya", "V02", None, "ខ្ទាស់សក់របស់ខ្ញុំដឹកហើយឬនៅ?", [("maya", "customer", "សួស្តី! ការកម្មង់ខ្ញុំដឹកហើយឬនៅ? ខ្ញុំត្រូវការមុនថ្ងៃសុក្រ។", 3)]),
             (
                 "C-2",
                 "maya",
                 "V06",
                 "O-1001",
-                "Gift wrap for the coasters?",
+                "រុំអំណោយសម្រាប់ក្រាលពែង?",
                 [
-                    ("maya", "customer", "Could you gift-wrap the coasters? They are a birthday present.", 6),
-                    ("jess", "vendor", "Of course. I'll add a linen ribbon before it ships. Jess", 5.8),
+                    ("maya", "customer", "សូមរុំអំណោយឈុតក្រាលពែងបានទេ? ជាអំណោយថ្ងៃកំណើត។", 6),
+                    ("jess", "vendor", "បានជាក់ណាស់។ ខ្ញុំនឹងភ្ជាប់ខ្សែក្រណាត់មុនដឹក។ Jess", 5.8),
                 ],
             ),
         ]
@@ -690,16 +693,16 @@ class Seeder:
 
     def notifications(self) -> None:
         items = [
-            ("jess", "stock.low", "Quilted mug wrap is down to 1 unit", "Restock before it sells out.", "/seller/inventory", 0.2),
-            ("jess", "order.placed", "New order O-1001-V06 to pack", "Wool felt coaster set, natural.", "/seller/orders", 6.9),
-            ("daniel", "vendor.submitted", "SimplyCreativeJess submitted documents", "Review the application.", "/admin/vendors", 1.1),
-            ("ava", "vendor.submitted", "SimplyCreativeJess submitted documents", "Review the application.", "/admin/vendors", 1.1),
-            ("ava", "coupon.flash", "FLASH24 flash sale is live for 24 hours", "Platform-funded, 20% off orders over $30.", "/admin/coupons", 0.04),
-            ("lin", "dispute.opened", "Dispute D1 opened on O-1002", "Shipping delay. Payout PAY-07 is on hold.", "/admin/disputes", 2),
-            ("ava", "dispute.opened", "Dispute D1 opened on O-1002", "Shipping delay. Payout PAY-07 is on hold.", "/admin/disputes", 2),
-            ("kein", "payout.eligible", "Payout PAY-04 is ready to request", "$9,200.00 is past the holdback.", "/seller/payouts", 1),
-            ("maya", "order.delivered", "O-1003 was delivered", "Tell other buyers what you think.", "/account/orders/O-1003", 11),
-            ("maya", "order.shipped", "O-1001-V03 is on its way", "Canada Post CA-44821.", "/account/orders/O-1001", 5),
+            ("jess", "stock.low", "ស្រោមពែងដេរដៃនៅសល់តែ ១", "បន្ថែមស្តុកមុននឹងអស់។", "/seller/inventory", 0.2),
+            ("jess", "order.placed", "ការកម្មង់ថ្មី O-1001-V06 ត្រូវវេចខ្ចប់", "ឈុតក្រណាត់ក្រាលពែង ពណ៌ធម្មជាតិ។", "/seller/orders", 6.9),
+            ("daniel", "vendor.submitted", "សិល្បៈក្រដាសថ្មីបានដាក់ឯកសារ", "ពិនិត្យពាក្យសុំ។", "/admin/vendors", 1.1),
+            ("ava", "vendor.submitted", "សិល្បៈក្រដាសថ្មីបានដាក់ឯកសារ", "ពិនិត្យពាក្យសុំ។", "/admin/vendors", 1.1),
+            ("ava", "coupon.flash", "FLASH24 កំពុងដំណើរការ ២៤ ម៉ោង", "វេទិកាឧបត្ថម្ភ បញ្ចុះ ២០% លើការកម្មង់លើស $៣០។", "/admin/coupons", 0.04),
+            ("lin", "dispute.opened", "វិវាទ D1 បើកលើ O-1002", "ដឹកយឺត។ ទូទាត់ PAY-07 ត្រូវរក្សាទុក។", "/admin/disputes", 2),
+            ("ava", "dispute.opened", "វិវាទ D1 បើកលើ O-1002", "ដឹកយឺត។ ទូទាត់ PAY-07 ត្រូវរក្សាទុក។", "/admin/disputes", 2),
+            ("kein", "payout.eligible", "ទូទាត់ PAY-04 រួចសម្រាប់ស្នើ", "$៩,២០០.០០ ផុតពេលរក្សា។", "/seller/payouts", 1),
+            ("maya", "order.delivered", "O-1003 បានដឹកដល់", "ប្រាប់អ្នកទិញផ្សេងពីបទពិសោធន៍របស់អ្នក។", "/account/orders/O-1003", 11),
+            ("maya", "order.shipped", "O-1001-V03 កំពុងដឹក", "Cambodia Post KH-44821។", "/account/orders/O-1001", 5),
         ]
         for i, (user_id, kind, title, body, link, days) in enumerate(items):
             created = self.ago(days=days)
@@ -763,7 +766,7 @@ class Seeder:
         self.log(self.ago(days=7, hours=12), "daniel", "commission", "pay_payout", "payout", "PAY-09", before={"status": "approved"}, after={"status": "paid", "reference": "TRF-0909"})
         self.log(self.ago(days=2), "maya", "order", "open_dispute", "dispute", "D1", after={"sub_order": "O-1002-V07", "reason": "shipping_delay"})
         self.log(self.ago(days=2), None, "commission", "hold_payout", "payout", "PAY-07", before={"status": "eligible"}, after={"status": "held_for_dispute"}, reason="Dispute D1 opened")
-        self.log(self.ago(days=45), "jess", "customer", "respond_review", "review", "R10", after={"vendor_response": "Thank you so much, it made my week. Jess"})
+        self.log(self.ago(days=45), "jess", "customer", "respond_review", "review", "R10", after={"vendor_response": "អរគុណខ្លាំងណាស់ ធ្វើឱ្យខ្ញុំរីករាយពេញសប្តាហ៍។ Jess"})
         self.log(self.ago(hours=1, minutes=5), "ava", "coupon", "create", "coupon", "FLASH24", after={"percent_off": 20, "funded_by": "platform", "is_flash": True})
         self.log(self.ago(minutes=40), "kein", "order", "read", "sub_order", "O-1001-V06", outcome="denied", reason="Not visible to this vendor (tenant isolation)")
         db.flush()

@@ -111,12 +111,24 @@ class FileResponse(Response):
 
 
 def encode_result(result: Any, response_model: Any = None) -> Any:
+    from pydantic import TypeAdapter
+
     from app.flaskapi.encoding import jsonable_encoder
 
     if result is None:
         return None
     if isinstance(result, (Response, FileResponse, FlaskResponse)):
         return result
+    if response_model is not None:
+        adapted = TypeAdapter(response_model).validate_python(result)
+        if isinstance(adapted, BaseModel):
+            return jsonable_encoder(adapted.model_dump(mode="json"))
+        if isinstance(adapted, list):
+            return [
+                jsonable_encoder(item.model_dump(mode="json") if isinstance(item, BaseModel) else item)
+                for item in adapted
+            ]
+        return jsonable_encoder(adapted)
     if isinstance(result, BaseModel):
         return jsonable_encoder(result.model_dump(mode="json"))
     if isinstance(result, list) and result and isinstance(result[0], BaseModel):

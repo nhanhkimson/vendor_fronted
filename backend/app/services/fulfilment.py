@@ -17,7 +17,7 @@ from app.services.events import Notice, emit, users_with_permission, vendor_staf
 from app.services.placement import refresh_order_status
 from app.services.tenancy import not_found
 
-CARRIERS = {"US": "USPS", "CA": "Canada Post", "UK": "Royal Mail"}
+CARRIERS = {"KH": "Cambodia Post", "US": "USPS", "CA": "Canada Post", "UK": "Royal Mail"}
 VENDOR_NEXT = {
     "pending_acceptance": "Accept the order so the buyer knows you have it",
     "accepted": "Start packing",

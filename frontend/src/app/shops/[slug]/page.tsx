@@ -7,9 +7,9 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   return (
     <div className="wrap space-y-6 py-8">
       <div>
-        <p className="text-xs uppercase tracking-wide text-[#b8572a]">{page.shop.city}</p>
+        <p className="text-xs uppercase tracking-wide text-secondary">{page.shop.city}</p>
         <h1 className="serif text-5xl">{page.shop.name}</h1>
-        <p className="max-w-xl text-[#6b6258]">{page.shop.about}</p>
+        <p className="max-w-xl text-muted-foreground">{page.shop.about}</p>
       </div>
       <ProductGrid products={page.products} />
     </div>

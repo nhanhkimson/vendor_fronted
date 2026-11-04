@@ -25,10 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        {/* Apply saved locale before paint so Khmer/Chinese fonts are ready on first frame. */}
+        {/* Apply saved locale + theme before paint to avoid a flash of wrong fonts/colors. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var l=localStorage.getItem("bazaar-locale");if(l==="en"||l==="km"||l==="zh"){document.documentElement.dataset.locale=l;document.documentElement.lang=l==="zh"?"zh-CN":l;}}catch(e){}})();`,
+            __html: `(function(){try{var l=localStorage.getItem("bazaar-locale");if(l==="en"||l==="km"||l==="zh"){document.documentElement.dataset.locale=l;document.documentElement.lang=l==="zh"?"zh-CN":l;}var t=localStorage.getItem("theme");var d=window.matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(t!=="light"&&d)){document.documentElement.classList.add("dark");}else{document.documentElement.classList.remove("dark");}}catch(e){}})();`,
           }}
         />
       </head>

@@ -26,6 +26,12 @@ def _buy(client, token, variant_id: str, coupon: str | None = None) -> dict:
     return call(client, "POST", f"/api/payments/{intent['id']}/confirm", token, CARD)
 
 
+def _publish(client, tokens, product_id: str) -> None:
+    """Seller-created listings start as draft; cart needs published + active."""
+    call(client, "POST", f"/api/seller/products/{product_id}/submit", tokens["jess"])
+    call(client, "POST", f"/api/listings/{product_id}/approve", tokens["ava"])
+
+
 def _line(vendor: str, price: int) -> QuoteLine:
     return QuoteLine(
         variant_id="v",
@@ -78,7 +84,7 @@ def test_platform_coupon_does_not_shrink_the_frozen_commission_base(client, toke
     sub = next(item for item in order["sub_orders"] if item["vendor_id"] == "V03")
     assert sub["items_subtotal_cents"] == 4800
     assert sub["platform_discount_cents"] == 480
-    assert sub["charged_cents"] == 4800 + 650 - 480
+    assert sub["charged_cents"] == 4800 + 300 - 480
     assert sub["vendor_net_cents"] + sub["commission_cents"] == sub["charged_cents"] + sub["platform_discount_cents"]
     lines = call(client, "GET", "/api/commission-lines?vendor_id=V03", tokens["ava"])
     frozen = next(line for line in lines if line["order_id"] == order["id"])
@@ -102,10 +108,10 @@ def test_g1_support_cannot_change_rules_and_admin_action_is_audited(client, toke
         row = next(item for item in page["items"] if item.get("after") and item["after"].get("city") == "Porto")
         assert row["outcome"] == "success"
         assert "admin" in row["actor_roles"]
-        assert row["before"]["city"] == "Lisbon"
+        assert row["before"]["city"] == "ភ្នំពេញ"
         assert row["after"]["city"] == "Porto"
     finally:
-        call(client, "PATCH", "/api/customers/theo", tokens["ava"], {"city": "Lisbon"})
+        call(client, "PATCH", "/api/customers/theo", tokens["ava"], {"city": "ភ្នំពេញ"})
 
 
 def test_g2_and_section10_vendor_isolation_is_404_and_rls(client, tokens, as_app):
@@ -393,6 +399,7 @@ def test_two_buyers_cannot_both_take_the_last_unit(client, tokens):
         },
         ok=201,
     )
+    _publish(client, tokens, product["id"])
     variant_id = product["variants"][0]["id"]
     for token in (tokens["maya"], tokens["theo"]):
         clear_cart(client, token)
@@ -427,6 +434,7 @@ def test_concurrent_checkout_lets_only_one_reservation_succeed(client, tokens):
         },
         ok=201,
     )
+    _publish(client, tokens, product["id"])
     variant_id = product["variants"][0]["id"]
     for token in (tokens["maya"], tokens["theo"]):
         clear_cart(client, token)

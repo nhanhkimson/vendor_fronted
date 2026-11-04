@@ -19,25 +19,25 @@ export function HomeView({ home }: { home: Home }) {
         <div>
           <p className="copper">{t.home.eyebrow}</p>
           <h1 className="serif mt-2 text-6xl leading-none">{t.home.title}</h1>
-          <p className="mt-4 max-w-md text-[#6b6258]">{t.home.body}</p>
+          <p className="mt-4 max-w-md text-muted-foreground">{t.home.body}</p>
           <div className="mt-6 flex gap-3 text-sm">
-            <span className="rounded-full bg-white px-3 py-2">
+            <span className="rounded-full bg-card px-3 py-2 ring-1 ring-border">
               {home.stats.shops} {t.home.shops}
             </span>
-            <span className="rounded-full bg-white px-3 py-2">
+            <span className="rounded-full bg-card px-3 py-2 ring-1 ring-border">
               {home.stats.products} {t.home.pieces}
             </span>
-            <span className="rounded-full bg-white px-3 py-2">
+            <span className="rounded-full bg-card px-3 py-2 ring-1 ring-border">
               {home.stats.customers} {t.home.customers}
             </span>
           </div>
         </div>
         <div className="panel p-5">
-          <p className="text-xs uppercase tracking-wide text-[#b8572a]">{t.home.liveNow}</p>
+          <p className="text-xs uppercase tracking-wide text-secondary">{t.home.liveNow}</p>
           <ul className="mt-3 space-y-2">
             {home.promotions.map((promo) => (
               <li key={promo.code}>
-                <b>{promo.code}</b> <span className="text-[#6b6258]">{promo.note}</span>
+                <b>{promo.code}</b> <span className="text-muted-foreground">{promo.note}</span>
               </li>
             ))}
           </ul>
@@ -56,7 +56,7 @@ export function HomeView({ home }: { home: Home }) {
           {home.shops.map((shop) => (
             <Link key={shop.id} href={`/shops/${shop.slug}`} className="panel p-4">
               <h3 className="text-lg">{shop.name}</h3>
-              <p className="text-sm text-[#6b6258]">{shop.headline}</p>
+              <p className="text-sm text-muted-foreground">{shop.headline}</p>
             </Link>
           ))}
         </div>
@@ -73,9 +73,9 @@ export function ShopsView({ shops }: { shops: Shop[] }) {
       <div className="grid gap-4 md:grid-cols-2">
         {shops.map((shop) => (
           <Link key={shop.id} href={`/shops/${shop.slug}`} className="panel p-5">
-            <p className="text-xs uppercase tracking-wide text-[#b8572a]">{shop.city}</p>
+            <p className="text-xs uppercase tracking-wide text-secondary">{shop.city}</p>
             <h2 className="serif text-3xl">{shop.name}</h2>
-            <p className="text-[#6b6258]">{shop.headline}</p>
+            <p className="text-muted-foreground">{shop.headline}</p>
             <p className="mt-2 text-sm">
               {shop.product_count} {t.shops.pieces} · {shop.tier_name}
             </p>
@@ -91,10 +91,10 @@ export function ReviewsView({ items }: { items: Review[] }) {
   return (
     <div className="wrap space-y-4 py-8">
       <h1 className="serif text-5xl">{t.reviews.title}</h1>
-      <p className="text-[#6b6258]">{t.reviews.intro}</p>
+      <p className="text-muted-foreground">{t.reviews.intro}</p>
       {items.map((review) => (
         <article key={review.id} className="panel p-4">
-          <p className="text-sm text-[#6b6258]">
+          <p className="text-sm text-muted-foreground">
             {review.product_title} · {review.vendor_name} · {review.rating ?? "—"} {t.reviews.stars}
             {review.verified_purchase ? ` · ${t.reviews.verified}` : ""}
           </p>
@@ -110,7 +110,7 @@ export function SearchView({ q, total, products }: { q?: string; total: number; 
   return (
     <div className="wrap space-y-6 py-8">
       <h1 className="serif text-5xl">{q ? `${t.search.resultsFor} “${q}”` : t.search.catalogue}</h1>
-      <p className="text-sm text-[#6b6258]">
+      <p className="text-sm text-muted-foreground">
         {total} {t.search.pieces}
       </p>
       <ProductGrid products={products} />
@@ -125,7 +125,7 @@ export function AboutView() {
       <h1 className="serif text-5xl">{t.about.title}</h1>
       <p>{t.about.p1}</p>
       <p>{t.about.p2}</p>
-      <p className="text-[#6b6258]">{t.about.note}</p>
+      <p className="text-muted-foreground">{t.about.note}</p>
     </div>
   );
 }
@@ -133,16 +133,27 @@ export function AboutView() {
 export function GuideView() {
   const { t } = useI18n();
   return (
-    <div className="wrap max-w-2xl space-y-6 py-10">
-      <h1 className="serif text-5xl">{t.guide.title}</h1>
+    <div className="wrap max-w-3xl space-y-8 py-10">
+      <div className="space-y-2">
+        <h1 className="serif text-5xl">{t.guide.title}</h1>
+        <p className="text-muted-foreground">{t.guide.intro}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {t.guide.surfaces.map(([title, body]) => (
+          <div key={title} className="panel space-y-2 p-4">
+            <p className="text-xs uppercase tracking-wide text-secondary">{title}</p>
+            <p className="text-sm leading-relaxed text-foreground">{body}</p>
+          </div>
+        ))}
+      </div>
       <ol className="space-y-4">
         {t.guide.steps.map(([title, body], index) => (
           <li key={title} className="panel p-4">
-            <p className="text-xs uppercase tracking-wide text-[#b8572a]">
+            <p className="text-xs uppercase tracking-wide text-secondary">
               {t.guide.step} {index + 1}
             </p>
             <h2 className="text-xl">{title}</h2>
-            <p className="text-[#6b6258]">{body}</p>
+            <p className="text-muted-foreground">{body}</p>
           </li>
         ))}
       </ol>

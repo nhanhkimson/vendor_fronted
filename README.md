@@ -1,10 +1,12 @@
 # Bazaar Platform
 
-A multi-vendor marketplace. Customers buy from many shops in one checkout. Each shop ships its own part of the order. The platform keeps a commission that is frozen when the order is placed.
+A multi-vendor marketplace with three surfaces: public **Website**, **Seller Dashboard**, and **Admin Console**. Customers buy from many shops in one checkout. Each shop ships its own part of the order. The platform freezes commission at payment and uses maker-checker for shop go-live, product listings, and payouts.
+
+**Stack:** Next.js (browser origin) → Flask API → PostgreSQL with row-level security. Sessions use a JWT cookie. Money is integer cents. Audit log is append-only for the app DB role.
 
 - `backend/` Flask and PostgreSQL. Swagger UI is at `/api/docs`.
-- `frontend/` Next.js storefront, Seller Central, and Admin Console. The browser only talks to Next.js; `/api` and `/media` are forwarded to FastAPI.
-- `docs/` architecture, use cases, and diagrams generated from the code.
+- `frontend/` Next.js storefront, Seller Dashboard, and Admin Console. The browser only talks to Next.js; `/api` and `/media` are forwarded to the API.
+- `docs/` system requirements, roles, architecture, and diagrams. Start with [docs/system-requirements.md](docs/system-requirements.md).
 
 ## Run it on this Mac
 

@@ -39,7 +39,7 @@ def units_sold(db: Session, product_ids: Iterable[str] | None = None) -> dict[st
 def product_counts(db: Session) -> dict[str, int]:
     rows = db.execute(
         select(Product.vendor_id, func.count(Product.id))
-        .where(Product.active.is_(True), Product.archived_at.is_(None))
+        .where(Product.listing_status == "published", Product.active.is_(True), Product.archived_at.is_(None))
         .group_by(Product.vendor_id)
     )
     return {vid: int(n) for vid, n in rows}
@@ -119,6 +119,8 @@ def product_out(
         "low_stock_threshold": product.low_stock_threshold,
         "image_url": product.image_url,
         "active": product.active,
+        "listing_status": product.listing_status,
+        "listing_reason": product.listing_reason,
         "archived_at": product.archived_at,
         "tags": [{"id": t.id, "name": t.name, "slug": t.slug} for t in product.tags],
         "variants": [variant_out(v) for v in product.variants],

@@ -6,9 +6,11 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ListingQueue } from "@/components/admin/listings";
 import { Area, DoThis } from "@/components/area";
 import { useSession } from "@/components/providers";
 import { Records } from "@/components/records";
+import { SellerProducts } from "@/components/seller/products";
 import { StackSkeleton } from "@/components/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, browserApi, unwrap } from "@/lib/api";
@@ -23,42 +25,161 @@ async function run(work: () => Promise<unknown>, ok: string) {
   }
 }
 
+type MetricDef = {
+  key: string;
+  label: string;
+  hint: string;
+  href: string;
+  group: "attention" | "money" | "activity";
+  money?: boolean;
+  warnWhenPositive?: boolean;
+};
+
+const METRICS: Record<"account" | "seller" | "admin", MetricDef[]> = {
+  account: [
+    { key: "open_orders", label: "Open orders", hint: "Still in progress", href: "/account/orders", group: "attention", warnWhenPositive: true },
+    { key: "open_disputes", label: "Open disputes", hint: "Need a reply or decision", href: "/account/orders", group: "attention", warnWhenPositive: true },
+    { key: "unread", label: "Unread alerts", hint: "Notifications waiting", href: "/account/notifications", group: "attention", warnWhenPositive: true },
+    { key: "orders", label: "All orders", hint: "Placed on Bazaar", href: "/account/orders", group: "activity" },
+    { key: "wishlist", label: "Wishlist", hint: "Saved pieces", href: "/account/wishlist", group: "activity" },
+  ],
+  seller: [
+    { key: "open_orders", label: "Needs shipping", hint: "Orders waiting on your shop", href: "/seller/orders", group: "attention", warnWhenPositive: true },
+    { key: "pending_listings", label: "Listings to finish", hint: "Draft, pending, or rejected", href: "/seller/products", group: "attention", warnWhenPositive: true },
+    { key: "low_stock", label: "Low stock", hint: "SKUs at or under threshold", href: "/seller/inventory", group: "attention", warnWhenPositive: true },
+    { key: "eligible_payouts", label: "Payouts ready", hint: "You can request these now", href: "/seller/payouts", group: "attention", warnWhenPositive: true },
+    { key: "open_disputes", label: "Open disputes", hint: "Customer issues on your orders", href: "/seller/orders", group: "attention", warnWhenPositive: true },
+    { key: "available_cents", label: "Available to withdraw", hint: "Balance ready after holdback", href: "/seller/payouts", group: "money", money: true },
+    { key: "orders", label: "All shop orders", hint: "Every sub-order for this shop", href: "/seller/orders", group: "activity" },
+    { key: "waiting_messages", label: "Waiting messages", hint: "Customer threads needing a reply", href: "/seller/messages", group: "activity", warnWhenPositive: true },
+    { key: "unread", label: "Unread alerts", hint: "Reviews and system notes", href: "/seller/reviews", group: "activity", warnWhenPositive: true },
+  ],
+  admin: [
+    { key: "vendors_to_review", label: "Vendors to review", hint: "Applications waiting", href: "/admin/vendors", group: "attention", warnWhenPositive: true },
+    { key: "listings_to_review", label: "Listings to moderate", hint: "Maker-checker queue", href: "/admin/listings", group: "attention", warnWhenPositive: true },
+    { key: "payouts_to_sign", label: "Payouts to sign", hint: "Needs a staff signature", href: "/admin/payouts", group: "attention", warnWhenPositive: true },
+    { key: "open_disputes", label: "Open disputes", hint: "Across the marketplace", href: "/admin/disputes", group: "attention", warnWhenPositive: true },
+    { key: "flagged_reviews", label: "Flagged reviews", hint: "Moderation queue", href: "/admin/reviews", group: "attention", warnWhenPositive: true },
+    { key: "open_orders", label: "Open orders", hint: "Not completed yet", href: "/admin/orders", group: "activity" },
+    { key: "unread", label: "Unread alerts", hint: "Staff notifications", href: "/admin", group: "activity", warnWhenPositive: true },
+  ],
+};
+
+const GROUP_TITLE = {
+  attention: "Needs attention",
+  money: "Money",
+  activity: "Shop pulse",
+} as const;
+
 function Overview({ area }: { area: "account" | "seller" | "admin" }) {
   const { me } = useSession();
   const path = area === "account" ? "/api/account/summary" : area === "seller" ? "/api/seller/summary" : "/api/admin/summary";
   const summary = useQuery({ queryKey: ["summary", area], queryFn: () => unwrap(browserApi.GET(path)) });
+  const data = summary.data as Record<string, number | string> | undefined;
+
+  const numberFor = (key: string) => {
+    const value = data?.[key];
+    return typeof value === "number" ? value : 0;
+  };
+
   const hints = {
-    account: "Shop two shops in one cart, pay with 4242 4242 4242 4242, then track each shipment.",
-    seller: "Ship the open order, reply to a review, and request the eligible payout.",
-    admin: "Revise a commission rate, co-sign a payout, and read the activity log.",
+    account: "Browse the website, checkout in one cart across shops, then track each shipment here.",
+    seller:
+      numberFor("open_orders") > 0
+        ? "Start with open orders, then finish listings and request any payout that is ready."
+        : "No open shipments. Create or submit listings, check reviews, and request payouts when ready.",
+    admin:
+      numberFor("listings_to_review") > 0
+        ? "Approve or reject pending listings first, then clear vendors, payouts, and disputes."
+        : "Review vendors, co-sign payouts, and read the activity log.",
   };
-  const keys = {
-    account: ["orders", "open_orders", "wishlist", "unread", "open_disputes"],
-    seller: ["orders", "open_orders", "low_stock", "waiting_messages", "available_cents", "eligible_payouts", "open_disputes", "unread"],
-    admin: ["open_orders", "open_disputes", "vendors_to_review", "payouts_to_sign", "flagged_reviews", "unread"],
-  };
+
+  const actions =
+    area === "seller"
+      ? [
+          ...(numberFor("open_orders") > 0
+            ? [{ href: "/seller/orders", label: `Ship open orders (${numberFor("open_orders")})`, primary: true }]
+            : []),
+          ...(numberFor("pending_listings") > 0
+            ? [{ href: "/seller/products", label: `Finish listings (${numberFor("pending_listings")})`, primary: numberFor("open_orders") === 0 }]
+            : []),
+          { href: "/seller/reviews", label: "Reply to reviews", primary: numberFor("open_orders") === 0 && numberFor("pending_listings") === 0 },
+          ...(numberFor("eligible_payouts") > 0
+            ? [{ href: "/seller/payouts", label: `Request payout (${numberFor("eligible_payouts")})`, primary: false }]
+            : [{ href: "/seller/payouts", label: "View payouts", primary: false }]),
+          ...(numberFor("low_stock") > 0
+            ? [{ href: "/seller/inventory", label: `Restock (${numberFor("low_stock")})`, primary: false }]
+            : []),
+        ]
+      : area === "account"
+        ? [
+            { href: "/", label: "Continue shopping", primary: true },
+            { href: "/account/orders", label: "Track orders", primary: false },
+          ]
+        : [
+            ...(numberFor("listings_to_review") > 0
+              ? [{ href: "/admin/listings", label: `Moderate listings (${numberFor("listings_to_review")})`, primary: true }]
+              : []),
+            { href: "/admin/vendors", label: "Review vendors", primary: numberFor("listings_to_review") === 0 },
+            { href: "/admin/payouts", label: "Sign payouts", primary: false },
+            { href: "/admin/audit", label: "Activity log", primary: false },
+          ];
+
+  const metrics = METRICS[area].filter((metric) => !data || metric.key in data);
+  const groups = (["attention", "money", "activity"] as const).filter((group) => metrics.some((metric) => metric.group === group));
+  const subtitle =
+    area === "account"
+      ? "Customer · your purchases only"
+      : area === "seller"
+        ? "Vendor · own shop only"
+        : me?.roles.map((role) => role.name).join(", ");
+
   return (
-    <div className="space-y-4">
-      <h1 className="serif text-5xl">{area === "seller" ? me?.vendor?.name || "Seller Central" : area === "admin" ? "Admin Console" : "Your account"}</h1>
-      <DoThis text={hints[area]} />
-      <p className="text-sm text-[#6b6258]">{area === "account" ? "Customer" : area === "seller" ? "Vendor · own shop only" : me?.roles.map((role) => role.name).join(", ")}</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {summary.isLoading
-          ? keys[area].map((key) => <Skeleton key={key} className="h-24" />)
-          : summary.data
-            ? keys[area]
-                .filter((key) => key in summary.data)
-                .map((key) => {
-                  const value = summary.data[key as keyof typeof summary.data];
-                  return (
-                    <div key={key} className="panel p-4">
-                      <p className="text-xs uppercase tracking-wide text-[#6b6258]">{titleCase(key)}</p>
-                      <p className="text-2xl">{typeof value === "number" && key.endsWith("cents") ? money(value) : String(value)}</p>
-                    </div>
-                  );
-                })
-            : null}
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="serif text-5xl leading-none">
+          {area === "seller" ? me?.vendor?.name || "Seller Central" : area === "admin" ? "Admin Console" : "Your account"}
+        </h1>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
+
+      <DoThis text={hints[area]} actions={actions} />
+
+      {summary.isLoading ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {METRICS[area].map((metric) => (
+            <Skeleton key={metric.key} className="h-28" />
+          ))}
+        </div>
+      ) : (
+        groups.map((group) => (
+          <section key={group} className="space-y-3">
+            <h2 className="text-xs uppercase tracking-[0.16em] text-secondary">{GROUP_TITLE[group]}</h2>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {metrics
+                .filter((metric) => metric.group === group)
+                .map((metric) => {
+                  const value = numberFor(metric.key);
+                  const warn = Boolean(metric.warnWhenPositive && value > 0);
+                  return (
+                    <Link
+                      key={metric.key}
+                      href={metric.href}
+                      className={`panel block p-4 transition hover:border-primary ${warn ? "border-secondary/50" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium text-foreground">{metric.label}</p>
+                        {warn ? <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-[11px] text-secondary">Act</span> : null}
+                      </div>
+                      <p className="mt-2 text-3xl tracking-tight text-foreground">{metric.money ? money(value) : value}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{metric.hint}</p>
+                    </Link>
+                  );
+                })}
+            </div>
+          </section>
+        ))
+      )}
     </div>
   );
 }
@@ -82,7 +203,7 @@ function OrderDetail({ id }: { id: string }) {
           <h2>
             {sub.vendor_name} · {titleCase(sub.status)}
           </h2>
-          <p className="text-sm text-[#6b6258]">
+          <p className="text-sm text-muted-foreground">
             {sub.tracking_number ? `${sub.carrier || "Carrier"} ${sub.tracking_number}` : "No tracking yet"} · {money(sub.charged_cents)}
           </p>
           <ol className="space-y-1 text-sm">
@@ -95,7 +216,7 @@ function OrderDetail({ id }: { id: string }) {
           <div className="flex flex-wrap gap-2">
             {sub.allowed_actions.includes("confirm_delivery") ? (
               <button
-                className="rounded-full bg-[#24362c] px-3 py-1 text-sm text-[#f6efe3]"
+                className="rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground"
                 onClick={() =>
                   void run(
                     () =>
@@ -111,7 +232,7 @@ function OrderDetail({ id }: { id: string }) {
             ) : null}
             {sub.allowed_actions.includes("dispute") ? (
               <button
-                className="rounded-full border border-[#e2d8c8] px-3 py-1 text-sm"
+                className="rounded-full border border-border px-3 py-1 text-sm"
                 onClick={() =>
                   void run(
                     () =>
@@ -174,9 +295,9 @@ export function AccountWorkspace({ slug }: { slug?: string[] }) {
       <div className="space-y-2">
         <h1 className="serif text-4xl">Settings</h1>
         <p>{me?.name}</p>
-        <p className="text-[#6b6258]">{me?.email}</p>
+        <p className="text-muted-foreground">{me?.email}</p>
         <p>{me?.city}</p>
-        {me?.banned ? <p className="text-[#9f2d3a]">Restricted: {me.ban_reason}</p> : null}
+        {me?.banned ? <p className="text-destructive">Restricted: {me.ban_reason}</p> : null}
       </div>
     );
   return <Area area="account">{body}</Area>;
@@ -199,7 +320,7 @@ function Messages({ mine }: { mine: boolean }) {
             </p>
           ))}
           <button
-            className="text-sm text-[#b8572a]"
+            className="text-sm text-secondary"
             onClick={() =>
               void run(async () => {
                 if (mine) {
@@ -224,7 +345,7 @@ function Messages({ mine }: { mine: boolean }) {
           </button>
         </article>
       ))}
-      <input className="w-full rounded-xl border border-[#e2d8c8] px-3 py-2" value={body} onChange={(event) => setBody(event.target.value)} />
+      <input className="w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={body} onChange={(event) => setBody(event.target.value)} />
     </div>
   );
 }
@@ -245,7 +366,7 @@ function Notifications() {
       {notes.data?.items.map((note) => (
         <article key={note.id} className="panel p-4">
           <p className="font-medium">{note.title}</p>
-          <p className="text-sm text-[#6b6258]">{note.body}</p>
+          <p className="text-sm text-muted-foreground">{note.body}</p>
           {note.link ? <Link href={note.link}>{note.link}</Link> : null}
         </article>
       ))}
@@ -269,14 +390,14 @@ function SellerOrders() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Shop orders</h1>
-      <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={tracking} onChange={(event) => setTracking(event.target.value)} />
+      <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={tracking} onChange={(event) => setTracking(event.target.value)} />
       {orders.isLoading ? <StackSkeleton rows={4} /> : null}
       {orders.data?.map((sub) => (
         <article key={sub.id} className="panel space-y-2 p-4">
           <h2>
             {sub.id} · {titleCase(sub.status)} · {money(sub.charged_cents)}
           </h2>
-          <p className="text-sm text-[#6b6258]">
+          <p className="text-sm text-muted-foreground">
             Commission {money(sub.commission_cents)} · net {money(sub.vendor_net_cents)}
             {sub.tracking_number ? ` · ${sub.tracking_number}` : ""}
           </p>
@@ -325,11 +446,11 @@ function Reports({ seller }: { seller: boolean }) {
           <div className="panel h-64 p-3">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.revenue}>
-                <CartesianGrid stroke="#e2d8c8" />
+                <CartesianGrid stroke="var(--border)" />
                 <XAxis dataKey="date" hide />
                 <YAxis hide />
                 <Tooltip formatter={(value) => money(Number(value))} />
-                <Line type="monotone" dataKey="gmv_cents" stroke="#b8572a" dot={false} />
+                <Line type="monotone" dataKey="gmv_cents" stroke="var(--secondary)" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -340,7 +461,7 @@ function Reports({ seller }: { seller: boolean }) {
               </li>
             ))}
           </ul>
-          <a className="text-[#b8572a]" href={seller ? "/api/seller/reports/sales/export" : "/api/reports/sales/export"}>
+          <a className="text-secondary" href={seller ? "/api/seller/reports/sales/export" : "/api/reports/sales/export"}>
             Download CSV
           </a>
         </>
@@ -353,20 +474,7 @@ export function SellerWorkspace({ slug }: { slug?: string[] }) {
   const section = slug?.[0] ?? "home";
   const queryClient = useQueryClient();
   let body: React.ReactNode = <Overview area="seller" />;
-  if (section === "products")
-    body = (
-      <Records
-        title="Products"
-        hint="Only this shop's listings."
-        queryKey={["seller-products"]}
-        load={() => unwrap(browserApi.GET("/api/seller/products"))}
-        columns={[
-          { key: "title", label: "Title" },
-          { key: "price", label: "Price", render: (row) => money(row.price_cents) },
-          { key: "stock", label: "Available", render: (row) => String(row.available) },
-        ]}
-      />
-    );
+  if (section === "products") body = <SellerProducts />;
   else if (section === "inventory")
     body = (
       <Records
@@ -422,7 +530,7 @@ function SellerPayouts() {
             Balance {money(data.balance_cents)} · available {money(data.available_cents)}
             {data.open_dispute ? " · frozen by an open dispute" : ""}
           </p>
-          <button className="rounded-full bg-[#24362c] px-3 py-2 text-sm text-[#f6efe3]" onClick={() => void run(() => unwrap(browserApi.POST("/api/seller/payouts")), "Payout requested")}>
+          <button className="rounded-full bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => void run(() => unwrap(browserApi.POST("/api/seller/payouts")), "Payout requested")}>
             Request matured earnings
           </button>
           {data.payouts.map((payout) => (
@@ -455,10 +563,10 @@ function SellerReviews() {
             {review.product_title} · {review.rating} stars · {titleCase(review.status)}
           </p>
           <p>{review.body}</p>
-          {review.vendor_response ? <p className="text-sm text-[#6b6258]">Reply: {review.vendor_response}</p> : null}
+          {review.vendor_response ? <p className="text-sm text-muted-foreground">Reply: {review.vendor_response}</p> : null}
           {review.allowed_actions.includes("respond") ? (
             <button
-              className="mt-2 text-sm text-[#b8572a]"
+              className="mt-2 text-sm text-secondary"
               onClick={() =>
                 void run(
                   () =>
@@ -487,7 +595,7 @@ function ShopSettings() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">{shop.isLoading ? "Storefront" : shop.data?.name || "Storefront"}</h1>
-      {shop.isLoading ? <StackSkeleton rows={2} /> : <p className="text-[#6b6258]">{shop.data?.headline}</p>}
+      {shop.isLoading ? <StackSkeleton rows={2} /> : <p className="text-muted-foreground">{shop.data?.headline}</p>}
       <form
         className="flex gap-2"
         onSubmit={(event) => {
@@ -495,8 +603,8 @@ function ShopSettings() {
           void run(() => unwrap(browserApi.PATCH("/api/seller/shop", { body: { headline } })), "Storefront updated");
         }}
       >
-        <input className="flex-1 rounded-xl border border-[#e2d8c8] px-3 py-2" placeholder="New headline" value={headline} onChange={(event) => setHeadline(event.target.value)} />
-        <button className="rounded-full bg-[#24362c] px-3 text-[#f6efe3]">Save</button>
+        <input className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-foreground" placeholder="New headline" value={headline} onChange={(event) => setHeadline(event.target.value)} />
+        <button className="rounded-full bg-primary px-3 text-primary-foreground">Save</button>
       </form>
     </div>
   );
@@ -537,8 +645,8 @@ function Coupons({ seller }: { seller: boolean }) {
           );
         }}
       >
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={code} onChange={(event) => setCode(event.target.value)} />
-        <button className="rounded-full bg-[#b8572a] px-3 text-white">Create 10%</button>
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={code} onChange={(event) => setCode(event.target.value)} />
+        <button className="rounded-full bg-secondary px-3 text-secondary-foreground">Create 10%</button>
       </form>
       {coupons.isLoading ? <StackSkeleton /> : null}
       {coupons.data?.map((coupon) => (
@@ -555,6 +663,7 @@ export function AdminWorkspace({ slug }: { slug?: string[] }) {
   const queryClient = useQueryClient();
   let body: React.ReactNode = <Overview area="admin" />;
   if (section === "vendors") body = <Vendors />;
+  else if (section === "listings") body = <ListingQueue />;
   else if (section === "products")
     body = (
       <Records
@@ -652,7 +761,7 @@ function Vendors() {
           <h2>
             {vendor.name} · {titleCase(vendor.status)} · {vendor.tier_name}
           </h2>
-          <p className="text-sm text-[#6b6258]">{vendor.headline}</p>
+          <p className="text-sm text-muted-foreground">{vendor.headline}</p>
           {vendor.documents?.map((doc) => (
             <div key={doc.id} className="flex items-center gap-2 text-sm">
               <span>
@@ -680,7 +789,7 @@ function Vendors() {
           ))}
           {vendor.status === "under_review" ? (
             <button
-              className="rounded-full bg-[#24362c] px-3 py-1 text-sm text-[#f6efe3]"
+              className="rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground"
               onClick={() =>
                 void run(
                   () => unwrap(browserApi.POST("/api/vendors/{vendor_id}/verify", { params: { path: { vendor_id: vendor.id } } })).then(() => queryClient.invalidateQueries({ queryKey: ["vendors"] })),
@@ -791,7 +900,7 @@ function Roles() {
   return (
     <div className="space-y-4">
       <h1 className="serif text-4xl">Roles</h1>
-      <p className="text-sm text-[#6b6258]">Super Admin inherits Admin. Revoking a permission takes effect on the next request.</p>
+      <p className="text-sm text-muted-foreground">Super Admin inherits Admin. Revoking a permission takes effect on the next request.</p>
       <form
         className="flex flex-wrap gap-2"
         onSubmit={(event) => {
@@ -799,9 +908,9 @@ function Roles() {
           void run(() => unwrap(browserApi.DELETE("/api/roles/{role_id}/permissions/{key}", { params: { path: { role_id: roleId, key } } })), "Permission revoked");
         }}
       >
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={roleId} onChange={(event) => setRoleId(event.target.value)} />
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={key} onChange={(event) => setKey(event.target.value)} />
-        <button className="rounded-full border border-[#e2d8c8] px-3">Revoke</button>
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={roleId} onChange={(event) => setRoleId(event.target.value)} />
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={key} onChange={(event) => setKey(event.target.value)} />
+        <button className="rounded-full border border-border px-3">Revoke</button>
       </form>
       {matrix.isLoading ? <StackSkeleton /> : null}
       {matrix.data?.roles.map((role) => (
@@ -824,10 +933,10 @@ function AuditLog() {
     <div className="space-y-3">
       <h1 className="serif text-4xl">Activity log</h1>
       <div className="flex gap-2">
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" placeholder="Actor id" value={actor} onChange={(event) => setActor(event.target.value)} />
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" placeholder="Module" value={module} onChange={(event) => setModule(event.target.value)} />
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" placeholder="Actor id" value={actor} onChange={(event) => setActor(event.target.value)} />
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" placeholder="Module" value={module} onChange={(event) => setModule(event.target.value)} />
       </div>
-      <a className="text-sm text-[#b8572a]" href="/api/audit-logs/export?format=csv">
+      <a className="text-sm text-secondary" href="/api/audit-logs/export?format=csv">
         Export CSV
       </a>
       {log.isLoading ? <StackSkeleton rows={5} /> : null}
@@ -836,7 +945,7 @@ function AuditLog() {
           <p>
             {when(row.at)} · {row.actor_name} ({row.actor_roles.join(", ")}) · {row.module}.{row.action} · {row.outcome}
           </p>
-          <p className="text-[#6b6258]">
+          <p className="text-muted-foreground">
             {row.resource_type} {row.resource_id}
           </p>
           {row.before || row.after ? (
@@ -868,9 +977,9 @@ function Commissions() {
           );
         }}
       >
-        <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={ruleId} onChange={(event) => setRuleId(event.target.value)} />
-        <input className="w-28 rounded-xl border border-[#e2d8c8] px-3 py-2" type="number" value={bps} onChange={(event) => setBps(Number(event.target.value))} />
-        <button className="rounded-full bg-[#24362c] px-3 text-[#f6efe3]">Revise</button>
+        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={ruleId} onChange={(event) => setRuleId(event.target.value)} />
+        <input className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-foreground" type="number" value={bps} onChange={(event) => setBps(Number(event.target.value))} />
+        <button className="rounded-full bg-primary px-3 text-primary-foreground">Revise</button>
       </form>
       {rules.data?.map((rule) => (
         <p key={rule.id} className="text-sm">
@@ -888,7 +997,7 @@ function AdminPayouts() {
   return (
     <div className="space-y-3">
       <h1 className="serif text-4xl">Payouts</h1>
-      <input className="rounded-xl border border-[#e2d8c8] px-3 py-2" value={reference} onChange={(event) => setReference(event.target.value)} />
+      <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={reference} onChange={(event) => setReference(event.target.value)} />
       {payouts.isLoading ? <StackSkeleton rows={4} /> : null}
       {payouts.data?.map((payout) => (
         <article key={payout.id} className="panel flex flex-wrap items-center justify-between gap-2 p-3">

@@ -1,9 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Toaster } from "sonner";
 
+import { Toaster } from "@/components/ui/sonner";
 import { browserApi, unwrap } from "@/lib/api";
 import type { components } from "@/lib/api-types";
 import { clearGuestCart, readGuestCart } from "@/lib/guest-cart";
@@ -62,11 +63,13 @@ function Session({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } }));
   return (
-    <QueryClientProvider client={client}>
-      <LanguageProvider>
-        <Session>{children}</Session>
-        <Toaster richColors position="top-right" />
-      </LanguageProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <QueryClientProvider client={client}>
+        <LanguageProvider>
+          <Session>{children}</Session>
+          <Toaster richColors position="top-right" />
+        </LanguageProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

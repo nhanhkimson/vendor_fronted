@@ -16,6 +16,7 @@ log = logging.getLogger("bazaar")
 
 def create_app() -> Flask:
     app = Flask("bazaar-api")
+    app.url_map.strict_slashes = False
     app.config["MAX_CONTENT_LENGTH"] = settings.max_upload_bytes + 1024
     install_middleware(app)
 

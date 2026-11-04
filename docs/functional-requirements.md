@@ -22,6 +22,10 @@ One customer payment can include items from many shops; the order then splits in
 
 Roles and permissions limit what each user can open (customer, seller, admin, support, super admin); sellers and customers only reach their own data and cross-tenant access returns not found; every important create, update, delete, sign-in, and denied attempt is written to an activity log; sensitive tables (audit, commission, ledger) are protected so the app role cannot quietly rewrite history; and sessions use a secure browser cookie while staff tools stay behind authentication.
 
+## 6. Surfaces and listing maker-checker
+
+The product is three surfaces—public website, Seller Dashboard, and Admin Console—so each role has a clear place to work; sellers create and edit their own listings and prices then submit them for review; support or admin staff approve or reject listings (and shops) as checker, and only published listings appear on the website; material edits to a published title, price, or description return the listing to pending review; and payouts still need two different staff signatures. Full matrix: [system-requirements.md](system-requirements.md) and [roles.md](roles.md).
+
 ## Out of scope for this product
 
 Page builders, visual drag-and-drop site editors, and MongoDB-stored page designs are not part of Bazaar. This marketplace stores business data in PostgreSQL and serves a fixed Next.js storefront, Seller Central, and Admin Console.

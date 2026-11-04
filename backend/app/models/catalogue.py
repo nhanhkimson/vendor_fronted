@@ -57,6 +57,9 @@ class Product(Base):
     low_stock_threshold: Mapped[int] = mapped_column(Integer, default=3)
     image_url: Mapped[str | None] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # draft, pending_review, published, rejected, archived (see app.domain.states.PRODUCT)
+    listing_status: Mapped[str] = mapped_column(String(20), default="draft", index=True)
+    listing_reason: Mapped[str | None] = mapped_column(String(255))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
