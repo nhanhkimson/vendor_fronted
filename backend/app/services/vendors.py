@@ -1,6 +1,6 @@
 """M3 Vendors: applications, documents, verification, suspension, tiers, guarded delete."""
 
-from fastapi import UploadFile
+from app.flaskapi import UploadFile
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 

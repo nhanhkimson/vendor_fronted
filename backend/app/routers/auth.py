@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Response
-from fastapi.security import OAuth2PasswordRequestForm
+from app.flaskapi import APIRouter, Depends, Response
+from app.flaskapi import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 

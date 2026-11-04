@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from app.flaskapi import APIRouter, Depends
 from sqlalchemy import text
 
 from app.core.deps import Ctx, audit_meta, public_ctx, require

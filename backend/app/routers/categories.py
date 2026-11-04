@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from app.flaskapi import APIRouter, Depends
 
 from app.core.deps import Ctx, audit_meta, require
 from app.schemas.catalogue import CategoryCreate, CategoryOut, CategoryUpdate, ProductOut, TagCreate, TagOut, TagsIn

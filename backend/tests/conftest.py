@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from fastapi.testclient import TestClient
+from app.flaskapi import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 

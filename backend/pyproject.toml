@@ -6,13 +6,16 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.1",
-    "fastapi[standard]>=0.159.1",
+    "flask>=3.1.0",
     "psycopg[binary]>=3.3.6",
     "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.16.1",
     "pyjwt>=2.15.1",
     "sqlalchemy>=2.0",
 ]
+
+[tool.vercel]
+entrypoint = "app.main:app"
 
 [tool.uv]
 package = false

@@ -3,8 +3,8 @@
 import secrets
 from pathlib import Path
 
-from fastapi import UploadFile
-from fastapi.responses import FileResponse
+from app.flaskapi import UploadFile
+from app.flaskapi import FileResponse
 
 from app.core.config import settings
 from app.core.errors import NotFound, Unprocessable

@@ -11,11 +11,9 @@ ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from fastapi.routing import APIRoute
-
 from app.core.permissions import CATALOGUE, SYSTEM_ROLES
 from app.domain.states import MACHINES
-from app.main import app
+from app.flaskapi.introspect import dependency_meta, iter_routes
 from app.models import Base
 
 OUT = ROOT / "docs" / "generated"
@@ -89,23 +87,17 @@ def api_map() -> str:
         "| --- | --- | --- | --- | --- |",
     ]
     rows = []
-    for included in app.routes:
-        router = getattr(included, "original_router", None)
-        if router is None:
-            continue
-        for route in router.routes:
-            if not isinstance(route, APIRoute):
-                continue
-            methods = sorted(set(route.methods or ()) - {"HEAD", "OPTIONS"})
-            permission = scope = ""
-            for dependency in route.dependant.dependencies:
-                if getattr(dependency.call, "permission", None):
-                    permission = dependency.call.permission
-                    scope = getattr(dependency.call, "scope", "")
-            audit = (route.openapi_extra or {}).get("x-audit") or {}
-            audit_label = f"{audit.get('module', '')}.{audit.get('action', '')}" if audit else ""
-            for method in methods:
-                rows.append((method, route.path, permission, scope, audit_label))
+    for prefix, route in iter_routes():
+        methods = sorted(set(route.methods or ()) - {"HEAD", "OPTIONS"})
+        permission = scope = ""
+        for dep in dependency_meta(route.endpoint):
+            permission = dep.permission
+            scope = getattr(dep, "scope", "")
+        audit = (route.openapi_extra or {}).get("x-audit") or {}
+        audit_label = f"{audit.get('module', '')}.{audit.get('action', '')}" if audit else ""
+        path = f"{prefix}{route.path}"
+        for method in methods:
+            rows.append((method, path, permission, scope, audit_label))
     for method, path, permission, scope, audit_label in sorted(rows, key=lambda row: (row[1], row[0])):
         lines.append(f"| {method} | `{path}` | `{permission}` | {scope} | {audit_label} |")
     return "\n".join(lines)

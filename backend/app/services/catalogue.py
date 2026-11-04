@@ -3,7 +3,7 @@
 import csv
 import io
 
-from fastapi import UploadFile
+from app.flaskapi import UploadFile
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 

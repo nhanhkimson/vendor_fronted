@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # When true, a successful mutating request that wrote no audit row is recorded
     # as a violation (the test suite fails on any violation).
     strict_audit: bool = False
+    # Background maintenance loop is a poor fit for serverless; keep off on Vercel.
     run_maintenance: bool = True
 
     media_dir: Path = BACKEND_DIR / "media"

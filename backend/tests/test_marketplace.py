@@ -407,7 +407,7 @@ def test_two_buyers_cannot_both_take_the_last_unit(client, tokens):
 
 def test_concurrent_checkout_lets_only_one_reservation_succeed(client, tokens):
     """Both buyers pass the quote together; the conditional stock update admits one."""
-    from fastapi.testclient import TestClient
+    from app.flaskapi import TestClient
 
     from app.main import app
     from tests.conftest import auth

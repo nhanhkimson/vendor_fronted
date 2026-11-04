@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from app.flaskapi import APIRouter, Depends, Query
 
 from app.core.deps import Ctx, audit_meta, require
 from app.schemas.common import Message

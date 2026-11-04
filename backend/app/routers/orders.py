@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from app.flaskapi import APIRouter, Depends, Query
 
 from app.core.deps import Ctx, audit_meta, require
 from app.schemas.orders import (

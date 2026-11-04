@@ -8,7 +8,7 @@ transaction is rolled back.
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import Request
+from app.flaskapi import Request
 
 from app.core.db import SessionLocal, utcnow
 from app.core.util import to_json

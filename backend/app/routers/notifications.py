@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from app.flaskapi import APIRouter, Depends
 from sqlalchemy import func, select, update
 
 from app.core.db import utcnow

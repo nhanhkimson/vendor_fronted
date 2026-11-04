@@ -2,7 +2,7 @@
 
 A multi-vendor marketplace. Customers buy from many shops in one checkout. Each shop ships its own part of the order. The platform keeps a commission that is frozen when the order is placed.
 
-- `backend/` FastAPI and PostgreSQL. Swagger UI is at `/api/docs`.
+- `backend/` Flask and PostgreSQL. Swagger UI is at `/api/docs`.
 - `frontend/` Next.js storefront, Seller Central, and Admin Console. The browser only talks to Next.js; `/api` and `/media` are forwarded to FastAPI.
 - `docs/` architecture, use cases, and diagrams generated from the code.
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from app.flaskapi import APIRouter, Depends, Query
 
 from app.core.deps import Ctx, public_ctx
 from app.schemas.catalogue import (

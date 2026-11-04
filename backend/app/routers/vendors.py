@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
+from app.flaskapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 
 from app.core.deps import Ctx, audit_meta, authenticated, principal_for, require
 from app.routers.auth import me_out, set_session_cookie

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
+from app.flaskapi import APIRouter, Depends, File, Query, Response, UploadFile
 
 from app.core.deps import Ctx, audit_meta, require
 from app.schemas.catalogue import (

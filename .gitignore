@@ -10,7 +10,11 @@ __pycache__/
 # Environment files (copy the .env.example files instead)
 .env
 .env.local
+.env.vercel.secrets
 !.env.example
+.vercel
+backend/.vercel
+frontend/.vercel
 
 # Node / Next.js
 frontend/node_modules/
@@ -27,3 +31,6 @@ backend/private/
 # Logs
 *.log
 .run/
+.jwt.secret
+backend/.env.vercel.secrets
+backend/.jwt.secret

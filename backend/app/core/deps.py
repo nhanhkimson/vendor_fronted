@@ -11,8 +11,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from fastapi import Depends, Request
-from fastapi.security import OAuth2PasswordBearer
+from app.flaskapi import Depends, Request
+from app.flaskapi import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
