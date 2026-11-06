@@ -166,12 +166,14 @@ class Seeder:
         db.flush()
 
     def add_user(self, user_id: str, email: str, name: str, role: str, **fields) -> User:
+        created_at = fields.pop("created_at", self.ago(days=self.rng.randint(120, 380)))
         user = User(
             id=user_id,
             email=email,
             name=name,
             password_hash=self.password_hash,
-            created_at=fields.pop("created_at", self.ago(days=self.rng.randint(120, 380))),
+            created_at=created_at,
+            email_verified_at=fields.pop("email_verified_at", created_at),
             **fields,
         )
         self.db.add(user)

@@ -4,6 +4,8 @@ export type GuestLine = {
   title: string;
   price_cents: number;
   image_url?: string | null;
+  product_id?: string;
+  vendor_id?: string;
 };
 
 const KEY = "bazaar.guestCart";
@@ -29,6 +31,15 @@ export function addGuestLine(line: GuestLine) {
   if (existing) existing.qty = Math.min(10, existing.qty + line.qty);
   else lines.push(line);
   writeGuestCart(lines);
+}
+
+export function setGuestQty(variantId: string, qty: number) {
+  const lines = readGuestCart();
+  const next =
+    qty < 1
+      ? lines.filter((item) => item.variant_id !== variantId)
+      : lines.map((item) => (item.variant_id === variantId ? { ...item, qty: Math.min(10, qty) } : item));
+  writeGuestCart(next);
 }
 
 export function clearGuestCart() {

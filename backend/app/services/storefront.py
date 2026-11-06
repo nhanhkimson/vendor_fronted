@@ -221,9 +221,9 @@ def review_feed(db: Session, *, vendor: str | None, min_rating: float | None, th
 
 def home(db: Session) -> dict:
     everything = cards(db, list(db.scalars(visible()).unique().all()))
-    featured = sorted(everything, key=lambda i: (-i["units_sold"], -(i["rating"] or 0), i["title"]))[:8]
-    newest = sorted(everything, key=lambda i: i["created_at"], reverse=True)[:8]
-    shop_list = sorted(shops(db), key=lambda s: (-(s["rating"] or 0), -s["review_count"]))[:6]
+    featured = sorted(everything, key=lambda i: (-i["units_sold"], -(i["rating"] or 0), i["title"]))[:12]
+    newest = sorted(everything, key=lambda i: i["created_at"], reverse=True)[:12]
+    shop_list = sorted(shops(db), key=lambda s: (-(s["rating"] or 0), -s["review_count"]))[:8]
     roots = [c for c in category_tree(db) if c["parent_id"] is None]
     good_reviews = [r for r in reviews_for(db, limit=30) if (r["rating"] or 0) >= 4][:6]
     with system_scope(db):

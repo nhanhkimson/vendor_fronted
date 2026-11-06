@@ -18,6 +18,23 @@ class RegisterIn(Schema):
     city: str | None = Field(default=None, max_length=120, examples=["Phnom Penh"])
 
 
+class RegisterStartedOut(Schema):
+    email: str
+    detail: str
+    expires_in_seconds: int
+    challenge_id: str
+    dev_code: str | None = Field(default=None, description="Only present in development demos")
+
+
+class VerifyEmailIn(Schema):
+    email: Email
+    code: str = Field(min_length=4, max_length=12, examples=["482913"])
+
+
+class ResendOtpIn(Schema):
+    email: Email
+
+
 class TokenOut(Schema):
     access_token: str
     token_type: str = "bearer"
@@ -48,6 +65,7 @@ class MeOut(Schema):
     source: str
     banned: bool
     ban_reason: str | None
+    email_verified: bool = True
     kind: Literal["platform", "vendor", "customer"]
     home: str
     roles: list[RoleRef]

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, utcnow
@@ -78,6 +78,7 @@ class User(Base):
     # Tenancy: set for vendor staff (and for applicants while their shop is reviewed).
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     banned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ban_reason: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -90,3 +91,24 @@ class User(Base):
     @property
     def is_banned(self) -> bool:
         return self.banned_at is not None
+
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
+
+
+class EmailChallenge(Base):
+    """One-time codes for email verification (register) and similar flows."""
+
+    __tablename__ = "email_challenges"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), index=True)
+    purpose: Mapped[str] = mapped_column(String(40), default="register")
+    code_hash: Mapped[str] = mapped_column(String(255))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=5)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    payload_json: Mapped[str | None] = mapped_column(String(2000))

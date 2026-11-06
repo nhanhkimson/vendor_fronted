@@ -2,19 +2,27 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { OrderDetail, OrdersList } from "@/components/account/order";
+import { GrowthDashboard } from "@/components/admin/growth";
 import { ListingQueue } from "@/components/admin/listings";
+import { ShopQueue } from "@/components/admin/shops";
 import { Area, DoThis } from "@/components/area";
+import { Field, FlowSteps } from "@/components/flow";
 import { useSession } from "@/components/providers";
 import { Records } from "@/components/records";
 import { SellerProducts } from "@/components/seller/products";
+import { SellerPromotions } from "@/components/seller/promotions";
 import { StackSkeleton } from "@/components/skeletons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, browserApi, unwrap } from "@/lib/api";
 import { money, rate, titleCase, when } from "@/lib/format";
+import { shopLabel } from "@/lib/labels";
+import { isOwner, staffLabel } from "@/lib/roles";
 
 async function run(work: () => Promise<unknown>, ok: string) {
   try {
@@ -38,37 +46,31 @@ type MetricDef = {
 const METRICS: Record<"account" | "seller" | "admin", MetricDef[]> = {
   account: [
     { key: "open_orders", label: "Open orders", hint: "Still in progress", href: "/account/orders", group: "attention", warnWhenPositive: true },
-    { key: "open_disputes", label: "Open disputes", hint: "Need a reply or decision", href: "/account/orders", group: "attention", warnWhenPositive: true },
-    { key: "unread", label: "Unread alerts", hint: "Notifications waiting", href: "/account/notifications", group: "attention", warnWhenPositive: true },
     { key: "orders", label: "All orders", hint: "Placed on Bazaar", href: "/account/orders", group: "activity" },
-    { key: "wishlist", label: "Wishlist", hint: "Saved pieces", href: "/account/wishlist", group: "activity" },
   ],
   seller: [
     { key: "open_orders", label: "Needs shipping", hint: "Orders waiting on your shop", href: "/seller/orders", group: "attention", warnWhenPositive: true },
-    { key: "pending_listings", label: "Listings to finish", hint: "Draft, pending, or rejected", href: "/seller/products", group: "attention", warnWhenPositive: true },
-    { key: "low_stock", label: "Low stock", hint: "SKUs at or under threshold", href: "/seller/inventory", group: "attention", warnWhenPositive: true },
+    { key: "pending_listings", label: "Listings to finish", hint: "Draft or waiting for staff", href: "/seller/products", group: "attention", warnWhenPositive: true },
     { key: "eligible_payouts", label: "Payouts ready", hint: "You can request these now", href: "/seller/payouts", group: "attention", warnWhenPositive: true },
-    { key: "open_disputes", label: "Open disputes", hint: "Customer issues on your orders", href: "/seller/orders", group: "attention", warnWhenPositive: true },
     { key: "available_cents", label: "Available to withdraw", hint: "Balance ready after holdback", href: "/seller/payouts", group: "money", money: true },
-    { key: "orders", label: "All shop orders", hint: "Every sub-order for this shop", href: "/seller/orders", group: "activity" },
-    { key: "waiting_messages", label: "Waiting messages", hint: "Customer threads needing a reply", href: "/seller/messages", group: "activity", warnWhenPositive: true },
-    { key: "unread", label: "Unread alerts", hint: "Reviews and system notes", href: "/seller/reviews", group: "activity", warnWhenPositive: true },
+    { key: "orders", label: "All shop orders", hint: "Every order for this shop", href: "/seller/orders", group: "activity" },
   ],
   admin: [
-    { key: "vendors_to_review", label: "Vendors to review", hint: "Applications waiting", href: "/admin/vendors", group: "attention", warnWhenPositive: true },
-    { key: "listings_to_review", label: "Listings to moderate", hint: "Maker-checker queue", href: "/admin/listings", group: "attention", warnWhenPositive: true },
-    { key: "payouts_to_sign", label: "Payouts to sign", hint: "Needs a staff signature", href: "/admin/payouts", group: "attention", warnWhenPositive: true },
+    { key: "vendors_to_review", label: "Shops to verify", hint: "Check documents, then go live", href: "/admin/vendors", group: "attention", warnWhenPositive: true },
+    { key: "listings_to_review", label: "Products to publish", hint: "Approve before buyers see them", href: "/admin/listings", group: "attention", warnWhenPositive: true },
     { key: "open_disputes", label: "Open disputes", hint: "Across the marketplace", href: "/admin/disputes", group: "attention", warnWhenPositive: true },
-    { key: "flagged_reviews", label: "Flagged reviews", hint: "Moderation queue", href: "/admin/reviews", group: "attention", warnWhenPositive: true },
-    { key: "open_orders", label: "Open orders", hint: "Not completed yet", href: "/admin/orders", group: "activity" },
-    { key: "unread", label: "Unread alerts", hint: "Staff notifications", href: "/admin", group: "activity", warnWhenPositive: true },
+    { key: "gmv_cents", label: "GMV", hint: "What buyers spent", href: "/admin/reports", group: "money", money: true },
+    { key: "commission_cents", label: "Commission", hint: "Charged when a customer pays", href: "/admin/reports", group: "money", money: true },
+    { key: "shops", label: "Shops", hint: "Registered shops", href: "/admin/vendors", group: "activity" },
+    { key: "customers", label: "Customers", hint: "Buyer accounts", href: "/admin/customers", group: "activity" },
+    { key: "products", label: "Live listings", hint: "Published on the website", href: "/admin/products", group: "activity" },
   ],
 };
 
 const GROUP_TITLE = {
   attention: "Needs attention",
   money: "Money",
-  activity: "Shop pulse",
+  activity: "Pulse",
 } as const;
 
 function Overview({ area }: { area: "account" | "seller" | "admin" }) {
@@ -83,15 +85,22 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
   };
 
   const hints = {
-    account: "Browse the website, checkout in one cart across shops, then track each shipment here.",
+    account:
+      numberFor("open_orders") > 0
+        ? "You have parcels in progress. Open an order to see payment, shipping, and tracking."
+        : "Pick listings, pay once at checkout, then track each shop’s parcel here.",
     seller:
       numberFor("open_orders") > 0
-        ? "Start with open orders, then finish listings and request any payout that is ready."
-        : "No open shipments. Create or submit listings, check reviews, and request payouts when ready.",
+        ? "Ship open orders first. Then add products or run a discount from your menu."
+        : "Start here. Add a product with photo, price, and description. Staff publish it. Then run discounts from Discounts.",
     admin:
-      numberFor("listings_to_review") > 0
-        ? "Approve or reject pending listings first, then clear vendors, payouts, and disputes."
-        : "Review vendors, co-sign payouts, and read the activity log.",
+      numberFor("vendors_to_review") > 0
+        ? "Verify shop documents first. A shop is not real to buyers until you approve it."
+        : numberFor("listings_to_review") > 0
+          ? "Approve products shops want to publish."
+          : isOwner(me)
+            ? "Marketplace is clear. Check growth and permissions."
+            : "Review shops and listings when they arrive.",
   };
 
   const actions =
@@ -99,17 +108,13 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
       ? [
           ...(numberFor("open_orders") > 0
             ? [{ href: "/seller/orders", label: `Ship open orders (${numberFor("open_orders")})`, primary: true }]
-            : []),
+            : [{ href: "/seller/products", label: "Add a product", primary: true }]),
           ...(numberFor("pending_listings") > 0
-            ? [{ href: "/seller/products", label: `Finish listings (${numberFor("pending_listings")})`, primary: numberFor("open_orders") === 0 }]
-            : []),
-          { href: "/seller/reviews", label: "Reply to reviews", primary: numberFor("open_orders") === 0 && numberFor("pending_listings") === 0 },
+            ? [{ href: "/seller/products", label: `Finish listings (${numberFor("pending_listings")})`, primary: false }]
+            : [{ href: "/seller/promotions", label: "Create a discount", primary: false }]),
           ...(numberFor("eligible_payouts") > 0
             ? [{ href: "/seller/payouts", label: `Request payout (${numberFor("eligible_payouts")})`, primary: false }]
             : [{ href: "/seller/payouts", label: "View payouts", primary: false }]),
-          ...(numberFor("low_stock") > 0
-            ? [{ href: "/seller/inventory", label: `Restock (${numberFor("low_stock")})`, primary: false }]
-            : []),
         ]
       : area === "account"
         ? [
@@ -117,12 +122,14 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
             { href: "/account/orders", label: "Track orders", primary: false },
           ]
         : [
-            ...(numberFor("listings_to_review") > 0
-              ? [{ href: "/admin/listings", label: `Moderate listings (${numberFor("listings_to_review")})`, primary: true }]
+            ...(numberFor("vendors_to_review") > 0
+              ? [{ href: "/admin/vendors", label: `Verify shops (${numberFor("vendors_to_review")})`, primary: true }]
               : []),
-            { href: "/admin/vendors", label: "Review vendors", primary: numberFor("listings_to_review") === 0 },
-            { href: "/admin/payouts", label: "Sign payouts", primary: false },
-            { href: "/admin/audit", label: "Activity log", primary: false },
+            ...(numberFor("listings_to_review") > 0
+              ? [{ href: "/admin/listings", label: `Publish products (${numberFor("listings_to_review")})`, primary: numberFor("vendors_to_review") === 0 }]
+              : []),
+            { href: "/admin/reports", label: "Open growth", primary: numberFor("vendors_to_review") === 0 && numberFor("listings_to_review") === 0 },
+            ...(isOwner(me) ? [{ href: "/admin/roles", label: "Permissions", primary: false }] : []),
           ];
 
   const metrics = METRICS[area].filter((metric) => !data || metric.key in data);
@@ -132,16 +139,51 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
       ? "Customer · your purchases only"
       : area === "seller"
         ? "Vendor · own shop only"
-        : me?.roles.map((role) => role.name).join(", ");
+        : [staffLabel(me), me?.roles.map((role) => role.name).join(", ")].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="serif text-5xl leading-none">
-          {area === "seller" ? me?.vendor?.name || "Seller Central" : area === "admin" ? "Admin Console" : "Your account"}
+          {area === "seller"
+            ? (me?.vendor ? shopLabel(me.vendor.id, me.vendor.name) : "Seller Central")
+            : area === "admin"
+              ? staffLabel(me)
+              : "Your orders"}
         </h1>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
+
+      {area === "seller" ? (
+        <div className="panel space-y-5 p-6">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-secondary">How your shop works</p>
+            <h2 className="mt-1 serif text-3xl leading-none">Overview first, then products</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Read this once. Then open Products to upload a photo, write a description, and set a price. After staff publish it, manage discounts from Discounts — not from the catalogue list.
+            </p>
+          </div>
+          <ol className="grid gap-3 sm:grid-cols-3">
+            {[
+              { n: "1", title: "Add product", body: "Photo, description, price. Send for review." },
+              { n: "2", title: "Staff publish", body: "Buyers only see approved listings." },
+              { n: "3", title: "Sell and discount", body: "Ship orders. Run shop codes anytime." },
+            ].map((step) => (
+              <li key={step.n} className="rounded-2xl bg-muted/60 p-4">
+                <p className="text-xs uppercase tracking-wide text-secondary">Step {step.n}</p>
+                <p className="mt-1 font-medium">{step.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+      {area === "account" ? (
+        <FlowSteps
+          steps={[{ label: "Cart" }, { label: "Pay" }, { label: "Ship" }, { label: "Track" }]}
+          current={numberFor("open_orders") > 0 ? 3 : 0}
+        />
+      ) : null}
 
       <DoThis text={hints[area]} actions={actions} />
 
@@ -165,14 +207,18 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
                     <Link
                       key={metric.key}
                       href={metric.href}
-                      className={`panel block p-4 transition hover:border-primary ${warn ? "border-secondary/50" : ""}`}
+                      className={`panel dash-metric ${warn ? "border-secondary/55" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-sm font-medium text-foreground">{metric.label}</p>
-                        {warn ? <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-[11px] text-secondary">Act</span> : null}
+                        {warn ? (
+                          <span className="rounded-md bg-secondary/15 px-2.5 py-1 text-xs font-medium text-secondary">Needs you</span>
+                        ) : null}
                       </div>
-                      <p className="mt-2 text-3xl tracking-tight text-foreground">{metric.money ? money(value) : value}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{metric.hint}</p>
+                      <p className={`mt-3 text-foreground ${metric.money ? "price price-lg" : "text-3xl tracking-tight"}`}>
+                        {metric.money ? money(value) : value}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">{metric.hint}</p>
                     </Link>
                   );
                 })}
@@ -184,98 +230,13 @@ function Overview({ area }: { area: "account" | "seller" | "admin" }) {
   );
 }
 
-function OrderDetail({ id }: { id: string }) {
-  const queryClient = useQueryClient();
-  const order = useQuery({
-    queryKey: ["order", id],
-    queryFn: () => unwrap(browserApi.GET("/api/account/orders/{order_id}", { params: { path: { order_id: id } } })),
-  });
-  if (!order.data) return order.isLoading ? <StackSkeleton rows={4} /> : <p>Order not found.</p>;
-  const data = order.data;
-  return (
-    <div className="space-y-4">
-      <h1 className="serif text-4xl">{data.id}</h1>
-      <p>
-        {titleCase(data.status)} · {money(data.total_cents)} · {when(data.placed_at)}
-      </p>
-      {data.sub_orders.map((sub) => (
-        <section key={sub.id} className="panel space-y-2 p-4">
-          <h2>
-            {sub.vendor_name} · {titleCase(sub.status)}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {sub.tracking_number ? `${sub.carrier || "Carrier"} ${sub.tracking_number}` : "No tracking yet"} · {money(sub.charged_cents)}
-          </p>
-          <ol className="space-y-1 text-sm">
-            {sub.events.map((event, index) => (
-              <li key={index}>
-                {when(event.at)} · {titleCase(event.to_status)} {event.note ? `· ${event.note}` : ""}
-              </li>
-            ))}
-          </ol>
-          <div className="flex flex-wrap gap-2">
-            {sub.allowed_actions.includes("confirm_delivery") ? (
-              <button
-                className="rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground"
-                onClick={() =>
-                  void run(
-                    () =>
-                      unwrap(browserApi.POST("/api/account/sub-orders/{sub_id}/confirm-delivery", { params: { path: { sub_id: sub.id } } })).then(() =>
-                        queryClient.invalidateQueries({ queryKey: ["order", id] }),
-                      ),
-                    "Delivery confirmed",
-                  )
-                }
-              >
-                Confirm delivery
-              </button>
-            ) : null}
-            {sub.allowed_actions.includes("dispute") ? (
-              <button
-                className="rounded-full border border-border px-3 py-1 text-sm"
-                onClick={() =>
-                  void run(
-                    () =>
-                      unwrap(
-                        browserApi.POST("/api/account/sub-orders/{sub_id}/dispute", {
-                          params: { path: { sub_id: sub.id } },
-                          body: { reason: "shipping_delay", note: "The parcel has not moved." },
-                        }),
-                      ),
-                    "Dispute opened",
-                  )
-                }
-              >
-                Open a dispute
-              </button>
-            ) : null}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
 export function AccountWorkspace({ slug }: { slug?: string[] }) {
   const section = slug?.[0] ?? "home";
   const id = slug?.[1];
   const { me } = useSession();
   let body: React.ReactNode = <Overview area="account" />;
   if (section === "orders" && id) body = <OrderDetail id={id} />;
-  else if (section === "orders")
-    body = (
-      <Records
-        title="Orders"
-        queryKey={["my-orders"]}
-        load={() => unwrap(browserApi.GET("/api/account/orders"))}
-        columns={[
-          { key: "id", label: "Order", render: (row) => <Link href={`/account/orders/${row.id}`}>{row.id}</Link> },
-          { key: "status", label: "Status", render: (row) => titleCase(row.status) },
-          { key: "total", label: "Total", render: (row) => money(row.total_cents) },
-          { key: "placed", label: "Placed", render: (row) => when(row.placed_at) },
-        ]}
-      />
-    );
+  else if (section === "orders") body = <OrdersList />;
   else if (section === "wishlist")
     body = (
       <Records
@@ -388,84 +349,68 @@ function SellerOrders() {
     await run(() => unwrap(browserApi.POST(path, { params: { path: { sub_id: id } } })).then(() => queryClient.invalidateQueries({ queryKey: ["seller-orders"] })), "Updated");
   }
   return (
-    <div className="space-y-3">
-      <h1 className="serif text-4xl">Shop orders</h1>
-      <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={tracking} onChange={(event) => setTracking(event.target.value)} />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="serif text-4xl">Shop orders</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Accept, pack, ship, then mark delivered. One clear action at a time.</p>
+        </div>
+        <Field id="tracking" label="Tracking number for Ship">
+          <Input id="tracking" value={tracking} onChange={(event) => setTracking(event.target.value)} className="min-w-[220px]" />
+        </Field>
+      </div>
       {orders.isLoading ? <StackSkeleton rows={4} /> : null}
-      {orders.data?.map((sub) => (
-        <article key={sub.id} className="panel space-y-2 p-4">
-          <h2>
-            {sub.id} · {titleCase(sub.status)} · {money(sub.charged_cents)}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Commission {money(sub.commission_cents)} · net {money(sub.vendor_net_cents)}
-            {sub.tracking_number ? ` · ${sub.tracking_number}` : ""}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {sub.allowed_actions.includes("accept") ? <button onClick={() => void move(sub.id, "accept")}>Accept</button> : null}
-            {sub.allowed_actions.includes("pack") ? <button onClick={() => void move(sub.id, "pack")}>Pack</button> : null}
-            {sub.allowed_actions.includes("ship") ? (
-              <button
-                onClick={() =>
-                  void run(
-                    () =>
-                      unwrap(
-                        browserApi.POST("/api/seller/orders/{sub_id}/ship", {
-                          params: { path: { sub_id: sub.id } },
-                          body: { tracking_number: tracking, carrier: "USPS" },
-                        }),
-                      ).then(() => queryClient.invalidateQueries({ queryKey: ["seller-orders"] })),
-                    "Shipped",
-                  )
-                }
-              >
-                Ship
-              </button>
-            ) : null}
-            {sub.allowed_actions.includes("deliver") ? <button onClick={() => void move(sub.id, "deliver")}>Deliver</button> : null}
-          </div>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function Reports({ seller }: { seller: boolean }) {
-  const path = seller ? "/api/seller/reports/overview" : "/api/reports/overview";
-  const report = useQuery({ queryKey: ["report", path], queryFn: () => unwrap(browserApi.GET(path)) });
-  const data = report.data;
-  return (
-    <div className="space-y-4">
-      <h1 className="serif text-4xl">{seller ? "My shop" : "Platform"} reports</h1>
-      {report.isLoading ? <StackSkeleton rows={4} /> : null}
-      {data ? (
-        <>
-          <p>
-            GMV {money(data.totals.gmv_cents)} · commission {money(data.totals.commission_cents)} · {data.totals.orders} orders
-          </p>
-          <div className="panel h-64 p-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.revenue}>
-                <CartesianGrid stroke="var(--border)" />
-                <XAxis dataKey="date" hide />
-                <YAxis hide />
-                <Tooltip formatter={(value) => money(Number(value))} />
-                <Line type="monotone" dataKey="gmv_cents" stroke="var(--secondary)" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <ul className="text-sm">
-            {data.sales_by_vendor.map((row) => (
-              <li key={row.vendor_id}>
-                {row.vendor_name}: {money(row.gmv_cents)}
-              </li>
-            ))}
-          </ul>
-          <a className="text-secondary" href={seller ? "/api/seller/reports/sales/export" : "/api/reports/sales/export"}>
-            Download CSV
-          </a>
-        </>
+      {!orders.isLoading && !orders.data?.length ? (
+        <div className="panel p-10 text-center text-sm text-muted-foreground">No shop orders yet.</div>
       ) : null}
+      <div className="space-y-3">
+        {orders.data?.map((sub) => (
+          <article key={sub.id} className="panel space-y-4 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{sub.id}</p>
+                <h2 className="serif text-2xl leading-none">{titleCase(sub.status)}</h2>
+                <p className="text-sm text-muted-foreground">
+                  Commission {money(sub.commission_cents)} · net {money(sub.vendor_net_cents)}
+                  {sub.tracking_number ? ` · ${sub.tracking_number}` : ""}
+                </p>
+              </div>
+              <p className="price price-lg">{money(sub.charged_cents)}</p>
+            </div>
+            <div className="dash-actions border-t border-border pt-4">
+              {sub.allowed_actions.includes("accept") ? (
+                <Button onClick={() => void move(sub.id, "accept")}>Accept</Button>
+              ) : null}
+              {sub.allowed_actions.includes("pack") ? (
+                <Button onClick={() => void move(sub.id, "pack")}>Pack</Button>
+              ) : null}
+              {sub.allowed_actions.includes("ship") ? (
+                <Button
+                  onClick={() =>
+                    void run(
+                      () =>
+                        unwrap(
+                          browserApi.POST("/api/seller/orders/{sub_id}/ship", {
+                            params: { path: { sub_id: sub.id } },
+                            body: { tracking_number: tracking, carrier: "USPS" },
+                          }),
+                        ).then(() => queryClient.invalidateQueries({ queryKey: ["seller-orders"] })),
+                      "Shipped",
+                    )
+                  }
+                >
+                  Ship
+                </Button>
+              ) : null}
+              {sub.allowed_actions.includes("deliver") ? (
+                <Button variant="outline" onClick={() => void move(sub.id, "deliver")}>
+                  Deliver
+                </Button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
@@ -508,9 +453,9 @@ export function SellerWorkspace({ slug }: { slug?: string[] }) {
       />
     );
   else if (section === "orders") body = <SellerOrders />;
-  else if (section === "promotions") body = <Coupons seller />;
+  else if (section === "promotions") body = <SellerPromotions />;
   else if (section === "payouts") body = <SellerPayouts />;
-  else if (section === "reports") body = <Reports seller />;
+  else if (section === "reports") body = <GrowthDashboard seller />;
   else if (section === "storefront") body = <ShopSettings />;
   else if (section === "messages") body = <Messages mine={false} />;
   else if (section === "reviews") body = <SellerReviews />;
@@ -590,21 +535,83 @@ function SellerReviews() {
 }
 
 function ShopSettings() {
+  const queryClient = useQueryClient();
   const shop = useQuery({ queryKey: ["shop"], queryFn: () => unwrap(browserApi.GET("/api/seller/shop")) });
   const [headline, setHeadline] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const data = shop.data;
+
+  async function refreshShop() {
+    await queryClient.invalidateQueries({ queryKey: ["shop"] });
+  }
+
   return (
-    <div className="space-y-3">
-      <h1 className="serif text-4xl">{shop.isLoading ? "Storefront" : shop.data?.name || "Storefront"}</h1>
-      {shop.isLoading ? <StackSkeleton rows={2} /> : <p className="text-muted-foreground">{shop.data?.headline}</p>}
+    <div className="space-y-6">
+      <div>
+        <h1 className="serif text-4xl">{shop.isLoading ? "Storefront" : data?.name || "Storefront"}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {data ? `${titleCase(data.status)} · ${data.city}` : "Manage how buyers see this shop."}
+        </p>
+      </div>
+      {shop.isLoading ? <StackSkeleton rows={2} /> : null}
+      <div className="panel max-w-xl space-y-4 p-6">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-secondary">Shop photo</p>
+        {data?.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={data.image_url} alt="" className="h-44 w-full rounded-2xl object-cover" />
+        ) : (
+          <div className="flex h-44 items-center justify-center rounded-2xl bg-muted text-sm text-muted-foreground">No photo yet</div>
+        )}
+        <Field id="shop-photo" label="Replace photo" hint="JPEG, PNG or WebP. Up to 5 MB.">
+          <Input
+            id="shop-photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => setPhoto(event.target.files?.[0] || null)}
+          />
+        </Field>
+        <Button
+          type="button"
+          disabled={!photo}
+          onClick={() => {
+            if (!photo) return;
+            const body = new FormData();
+            body.set("file", photo);
+            void run(async () => {
+              const response = await fetch("/api/seller/shop/image", {
+                method: "POST",
+                body,
+                credentials: "include",
+                headers: { "X-Bazaar-Client": "web" },
+              });
+              const payload = await response.json().catch(() => null);
+              if (!response.ok) {
+                throw new ApiError(response.status, payload?.detail || "Upload failed");
+              }
+              setPhoto(null);
+              await refreshShop();
+            }, "Shop photo updated");
+          }}
+        >
+          Upload photo
+        </Button>
+      </div>
       <form
-        className="flex gap-2"
+        className="panel max-w-xl space-y-4 p-6"
         onSubmit={(event) => {
           event.preventDefault();
-          void run(() => unwrap(browserApi.PATCH("/api/seller/shop", { body: { headline } })), "Storefront updated");
+          void run(
+            () => unwrap(browserApi.PATCH("/api/seller/shop", { body: { headline } })).then(() => refreshShop()),
+            "Storefront updated",
+          );
         }}
       >
-        <input className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-foreground" placeholder="New headline" value={headline} onChange={(event) => setHeadline(event.target.value)} />
-        <button className="rounded-full bg-primary px-3 text-primary-foreground">Save</button>
+        <Field id="headline" label="Headline" hint="This line appears on your public shop page.">
+          <Input id="headline" placeholder={data?.headline || "New headline"} value={headline} onChange={(event) => setHeadline(event.target.value)} />
+        </Field>
+        <Button type="submit" size="lg">
+          Save headline
+        </Button>
       </form>
     </div>
   );
@@ -662,7 +669,7 @@ export function AdminWorkspace({ slug }: { slug?: string[] }) {
   const section = slug?.[0] ?? "home";
   const queryClient = useQueryClient();
   let body: React.ReactNode = <Overview area="admin" />;
-  if (section === "vendors") body = <Vendors />;
+  if (section === "vendors") body = <ShopQueue />;
   else if (section === "listings") body = <ListingQueue />;
   else if (section === "products")
     body = (
@@ -674,6 +681,7 @@ export function AdminWorkspace({ slug }: { slug?: string[] }) {
           { key: "title", label: "Title" },
           { key: "shop", label: "Shop", render: (row) => row.vendor_name },
           { key: "price", label: "Price", render: (row) => money(row.price_cents) },
+          { key: "listing_status", label: "Listing", render: (row) => titleCase(row.listing_status) },
         ]}
       />
     );
@@ -721,22 +729,43 @@ export function AdminWorkspace({ slug }: { slug?: string[] }) {
         ]}
         render={(row) =>
           row.status === "open" ? (
-            <button
-              onClick={() =>
-                void run(
-                  () =>
-                    unwrap(
-                      browserApi.POST("/api/disputes/{dispute_id}/resolve", {
-                        params: { path: { dispute_id: row.id } },
-                        body: { outcome: "reject", note: "Tracking shows the parcel is moving." },
-                      }),
-                    ).then(() => queryClient.invalidateQueries({ queryKey: ["disputes"] })),
-                  "Dispute resolved",
-                )
-              }
-            >
-              Reject
-            </button>
+            <span className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void run(
+                    () =>
+                      unwrap(
+                        browserApi.POST("/api/disputes/{dispute_id}/resolve", {
+                          params: { path: { dispute_id: row.id } },
+                          body: { outcome: "reject", note: "Tracking shows the parcel is moving." },
+                        }),
+                      ).then(() => queryClient.invalidateQueries({ queryKey: ["disputes"] })),
+                    "Kept with the shop",
+                  )
+                }
+              >
+                Keep
+              </Button>
+              <Button
+                size="sm"
+                onClick={() =>
+                  void run(
+                    () =>
+                      unwrap(
+                        browserApi.POST("/api/disputes/{dispute_id}/resolve", {
+                          params: { path: { dispute_id: row.id } },
+                          body: { outcome: "refund", note: "Refunded after review." },
+                        }),
+                      ).then(() => queryClient.invalidateQueries({ queryKey: ["disputes"] })),
+                    "Refunded the buyer",
+                  )
+                }
+              >
+                Refund
+              </Button>
+            </span>
           ) : null
         }
       />
@@ -745,65 +774,8 @@ export function AdminWorkspace({ slug }: { slug?: string[] }) {
   else if (section === "audit") body = <AuditLog />;
   else if (section === "commissions") body = <Commissions />;
   else if (section === "payouts") body = <AdminPayouts />;
-  else if (section === "reports") body = <Reports seller={false} />;
+  else if (section === "reports") body = <GrowthDashboard seller={false} />;
   return <Area area="admin">{body}</Area>;
-}
-
-function Vendors() {
-  const queryClient = useQueryClient();
-  const vendors = useQuery({ queryKey: ["vendors"], queryFn: () => unwrap(browserApi.GET("/api/vendors")) });
-  return (
-    <div className="space-y-3">
-      <h1 className="serif text-4xl">Vendors</h1>
-      {vendors.isLoading ? <StackSkeleton rows={4} /> : null}
-      {vendors.data?.map((vendor) => (
-        <article key={vendor.id} className="panel space-y-2 p-4">
-          <h2>
-            {vendor.name} · {titleCase(vendor.status)} · {vendor.tier_name}
-          </h2>
-          <p className="text-sm text-muted-foreground">{vendor.headline}</p>
-          {vendor.documents?.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-2 text-sm">
-              <span>
-                {doc.name}: {doc.status}
-              </span>
-              {doc.status !== "verified" ? (
-                <button
-                  onClick={() =>
-                    void run(
-                      () =>
-                        unwrap(
-                          browserApi.POST("/api/vendors/{vendor_id}/documents/{doc_id}/review", {
-                            params: { path: { vendor_id: vendor.id, doc_id: doc.id } },
-                            body: { decision: "verified" },
-                          }),
-                        ).then(() => queryClient.invalidateQueries({ queryKey: ["vendors"] })),
-                      "Document approved",
-                    )
-                  }
-                >
-                  Approve
-                </button>
-              ) : null}
-            </div>
-          ))}
-          {vendor.status === "under_review" ? (
-            <button
-              className="rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground"
-              onClick={() =>
-                void run(
-                  () => unwrap(browserApi.POST("/api/vendors/{vendor_id}/verify", { params: { path: { vendor_id: vendor.id } } })).then(() => queryClient.invalidateQueries({ queryKey: ["vendors"] })),
-                  "Shop verified",
-                )
-              }
-            >
-              Verify shop
-            </button>
-          ) : null}
-        </article>
-      ))}
-    </div>
-  );
 }
 
 function Customers() {
@@ -894,30 +866,101 @@ function ModerateReviews() {
 }
 
 function Roles() {
+  const queryClient = useQueryClient();
   const matrix = useQuery({ queryKey: ["matrix"], queryFn: () => unwrap(browserApi.GET("/api/permissions")) });
-  const [roleId, setRoleId] = useState("vendor");
-  const [key, setKey] = useState("product:delete");
+  const [roleId, setRoleId] = useState("support");
+  const [key, setKey] = useState("commission:manage_rule");
+  const roles = matrix.data?.roles || [];
+
   return (
-    <div className="space-y-4">
-      <h1 className="serif text-4xl">Roles</h1>
-      <p className="text-sm text-muted-foreground">Super Admin inherits Admin. Revoking a permission takes effect on the next request.</p>
+    <div className="space-y-6">
+      <div className="max-w-2xl space-y-2">
+        <h1 className="serif text-4xl">Permissions</h1>
+        <p className="text-sm text-muted-foreground">
+          Owner inherits Staff. Support cannot change rates or roles. Revoking a key takes effect on the next request.
+        </p>
+      </div>
+
       <form
-        className="flex flex-wrap gap-2"
+        className="panel grid gap-4 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
         onSubmit={(event) => {
           event.preventDefault();
-          void run(() => unwrap(browserApi.DELETE("/api/roles/{role_id}/permissions/{key}", { params: { path: { role_id: roleId, key } } })), "Permission revoked");
+          void run(
+            () =>
+              unwrap(browserApi.DELETE("/api/roles/{role_id}/permissions/{key}", { params: { path: { role_id: roleId, key } } })).then(() =>
+                queryClient.invalidateQueries({ queryKey: ["matrix"] }),
+              ),
+            "Permission revoked",
+          );
         }}
       >
-        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={roleId} onChange={(event) => setRoleId(event.target.value)} />
-        <input className="rounded-xl border border-border bg-background px-3 py-2 text-foreground" value={key} onChange={(event) => setKey(event.target.value)} />
-        <button className="rounded-full border border-border px-3">Revoke</button>
+        <Field id="role-id" label="Role id" hint="Example: support, admin, vendor">
+          <Input id="role-id" value={roleId} onChange={(event) => setRoleId(event.target.value)} list="role-ids" />
+          <datalist id="role-ids">
+            {roles.map((role) => (
+              <option key={role.id} value={role.id} />
+            ))}
+          </datalist>
+        </Field>
+        <Field id="perm-key" label="Permission key" hint="Example: commission:manage_rule">
+          <Input id="perm-key" value={key} onChange={(event) => setKey(event.target.value)} />
+        </Field>
+        <Button type="submit" variant="destructive" size="lg" className="w-full sm:w-auto">
+          Revoke key
+        </Button>
       </form>
-      {matrix.isLoading ? <StackSkeleton /> : null}
-      {matrix.data?.roles.map((role) => (
-        <p key={role.id}>
-          <b>{role.name}</b> · {role.effective.length} permissions{role.parent_name ? ` · inherits ${role.parent_name}` : ""}
-        </p>
-      ))}
+
+      {matrix.isLoading ? <StackSkeleton rows={4} /> : null}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {roles.map((role) => {
+          const selected = role.id === roleId;
+          return (
+            <article
+              key={role.id}
+              className={`panel space-y-4 p-5 transition ${selected ? "border-primary ring-1 ring-primary/30" : ""}`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{role.id}</p>
+                  <h2 className="serif text-3xl leading-none">{role.name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {role.parent_name ? `Inherits ${role.parent_name} · ` : ""}
+                    {role.effective.length} keys
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={selected ? "default" : "outline"}
+                  onClick={() => setRoleId(role.id)}
+                >
+                  {selected ? "Selected" : "Manage"}
+                </Button>
+              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">{role.description}</p>
+              <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                {role.effective.slice(0, 8).map((perm) => (
+                  <button
+                    key={perm.key}
+                    type="button"
+                    className="rounded-md bg-muted px-2.5 py-1.5 text-left text-xs text-foreground transition hover:bg-primary hover:text-primary-foreground"
+                    onClick={() => {
+                      setRoleId(role.id);
+                      setKey(perm.key);
+                    }}
+                    title="Load into revoke form"
+                  >
+                    {perm.key}
+                  </button>
+                ))}
+                {role.effective.length > 8 ? (
+                  <span className="rounded-md px-2.5 py-1.5 text-xs text-muted-foreground">+{role.effective.length - 8} more</span>
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }

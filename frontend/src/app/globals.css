@@ -156,7 +156,7 @@ html[data-locale="zh"] {
     radial-gradient(1200px 500px at 10% -10%, rgba(198, 161, 91, 0.08), transparent 55%),
     radial-gradient(900px 400px at 110% 0%, rgba(201, 106, 61, 0.1), transparent 50%);
 }
-.wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+.wrap { width: min(1280px, calc(100% - 32px)); margin: 0 auto; }
 .serif { font-family: var(--font-display); }
 .kh { font-family: var(--font-khmer), var(--font-body); }
 .zh { font-family: var(--font-zh); }
@@ -167,7 +167,38 @@ html[data-locale="zh"] {
   border-radius: 18px;
   color: var(--card-foreground);
 }
-.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+.product-media { aspect-ratio: 1 / 1; overflow: hidden; }
+@media (min-width: 768px) {
+  .product-media { aspect-ratio: 4 / 5; }
+}
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+
+/* Dashboard readability: prices and action rows stay scannable */
+.price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.price-lg { font-size: 1.75rem; }
+.price-md { font-size: 1.25rem; }
+.dash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+}
+.dash-metric {
+  display: block;
+  padding: 1.25rem 1.35rem;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.dash-metric:hover {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  transform: translateY(-1px);
+}
 
 /* Native controls follow theme */
 :root { color-scheme: light; }

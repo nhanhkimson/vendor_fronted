@@ -21,11 +21,15 @@ from app.core.errors import Conflict, NotFound, PaymentDeclined, Unprocessable
 from app.core.util import money, new_id
 from app.domain.pricing import Quote
 from app.models import Cart, PaymentIntent, Product, StockItem, StockReservation
+from app.models.identity import User
+from app.models.order import Order
 from app.services import cart as carts
 from app.services import coupons
+from app.services.auth_email import require_verified
 from app.services.catalogue import notify_low_stock
 from app.services.events import Notice, emit, vendor_staff_ids
 from app.services.placement import place_order
+from app.services.receipts import send_order_receipt
 
 TEST_CARDS = {
     "4242 4242 4242 4242": "Approved",
@@ -122,6 +126,7 @@ def release(db: Session, intent: PaymentIntent, status: str, reason: str | None)
 
 def start_checkout(ctx: Ctx, ship_name: str, ship_address: str) -> dict:
     db = ctx.db
+    require_verified(ctx.user)
     cart = carts.get_or_create(db, ctx.user_id)
     if not cart.lines:
         raise Conflict("Your cart is empty", code="cart_empty")
@@ -291,5 +296,13 @@ def confirm(ctx: Ctx, intent_id: str, card_number: str) -> str:
             "sub_orders": {s.id: s.charged_cents for s in order.sub_orders},
         },
     )
+    buyer = db.get(User, ctx.user_id)
+    placed = db.get(Order, order_id)
+    if buyer and placed:
+        try:
+            send_order_receipt(db, placed, buyer)
+        except Exception:
+            # Payment already succeeded — never fail the order because mail failed.
+            pass
     ctx.commit()
     return order_id

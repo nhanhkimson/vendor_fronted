@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     media_dir: Path = BACKEND_DIR / "media"
     private_dir: Path = BACKEND_DIR / "private"
 
+    # Mail — always written to private/mailbox. Set SMTP_* to also deliver.
+    mail_from: str = "Bazaar <noreply@bazaar.local>"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    otp_ttl_minutes: int = 15
+    # When true (default in development), register/verify responses include the OTP for demos.
+    expose_otp_in_api: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -6,14 +6,23 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import utcnow
 from app.core.deps import Ctx, Principal, audit_meta, authenticated, client_ip, principal_for, public_ctx
-from app.core.errors import Conflict, TooManyRequests, Unauthorized
+from app.core.errors import Forbidden, TooManyRequests, Unauthorized
 from app.core.ratelimit import FailureLimiter
-from app.core.security import create_access_token, hash_password, verify_password
-from app.core.util import new_id
-from app.models.identity import Role, User, UserRole
+from app.core.security import create_access_token, verify_password
+from app.models.identity import Role, User
 from app.models.vendor import Vendor
 from app.schemas.common import Message
-from app.schemas.identity import DemoAccount, LoginIn, MeOut, RegisterIn, TokenOut
+from app.schemas.identity import (
+    DemoAccount,
+    LoginIn,
+    MeOut,
+    RegisterIn,
+    RegisterStartedOut,
+    ResendOtpIn,
+    TokenOut,
+    VerifyEmailIn,
+)
+from app.services import auth_email
 from app.services.audit import record_standalone
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -25,7 +34,7 @@ def me_out(db: Session, principal: Principal) -> MeOut:
     vendor = db.get(Vendor, user.vendor_id) if user.vendor_id else None
     has_vendor_role = any(r.kind == "vendor" for r in user.roles)
     kind = principal.kind
-    home = "/admin" if kind == "platform" else "/seller" if has_vendor_role else "/account"
+    home = "/admin" if kind == "platform" else "/seller" if has_vendor_role else "/"
     return MeOut(
         id=user.id,
         email=user.email,
@@ -36,6 +45,7 @@ def me_out(db: Session, principal: Principal) -> MeOut:
         source=user.source,
         banned=user.is_banned,
         ban_reason=user.ban_reason,
+        email_verified=bool(user.email_verified_at),
         kind=kind if kind in ("platform", "vendor", "customer") else "customer",
         home=home,
         roles=[{"id": r.id, "name": r.name, "kind": r.kind} for r in user.roles],
@@ -86,6 +96,12 @@ def _authenticate(ctx: Ctx, email: str, password: str) -> Principal:
             "That email and password do not match. Every demo account uses the password demo."
             if reason == "Wrong email or password"
             else "This account has been deactivated."
+        )
+    if not user.email_verified_at:
+        login_limiter.reset(ip)
+        raise Forbidden(
+            "Verify your email first. Enter the code we sent, or register again to get a new one.",
+            code="email_unverified",
         )
     login_limiter.reset(ip)
     user.last_login_at = utcnow()
@@ -159,41 +175,41 @@ def me(ctx: Ctx = Depends(authenticated())) -> MeOut:
 
 @router.post(
     "/register",
-    response_model=MeOut,
+    response_model=RegisterStartedOut,
     status_code=201,
-    summary="Create a customer account",
-    openapi_extra=audit_meta("identity", "register"),
+    summary="Start customer registration — sends an email OTP",
+    openapi_extra=audit_meta("identity", "register_start"),
 )
-def register(body: RegisterIn, response: Response, ctx: Ctx = Depends(public_ctx)) -> MeOut:
-    db = ctx.db
-    if db.scalar(select(User).where(func.lower(User.email) == body.email)):
-        raise Conflict("An account with that email already exists. Sign in instead.", code="email_taken")
-    user = User(
-        id=new_id("U"),
+def register(body: RegisterIn, ctx: Ctx = Depends(public_ctx)) -> RegisterStartedOut:
+    return auth_email.start_register(
+        ctx,
+        name=body.name,
         email=body.email,
-        password_hash=hash_password(body.password),
-        name=body.name.strip(),
+        password=body.password,
         city=body.city,
-        source="organic",
-        blurb="Registered on the storefront",
     )
-    db.add(user)
-    db.flush()
-    db.add(UserRole(user_id=user.id, role_id="customer"))
-    db.flush()
-    db.refresh(user)
-    principal = principal_for(user, "cookie")
-    ctx.audit(
-        "identity",
-        "register",
-        "user",
-        user.id,
-        after={"email": user.email, "roles": ["customer"]},
-        principal=principal,
-    )
-    ctx.commit()
+
+
+@router.post(
+    "/verify-email",
+    response_model=MeOut,
+    summary="Confirm the email OTP and sign in",
+    openapi_extra=audit_meta("identity", "verify_email"),
+)
+def verify_email(body: VerifyEmailIn, response: Response, ctx: Ctx = Depends(public_ctx)) -> MeOut:
+    principal = auth_email.verify_email(ctx, email=body.email, code=body.code)
     set_session_cookie(response, principal)
-    return me_out(db, principal)
+    return me_out(ctx.db, principal)
+
+
+@router.post(
+    "/resend-otp",
+    response_model=RegisterStartedOut,
+    summary="Resend the registration verification code",
+    openapi_extra=audit_meta("identity", "otp_resend"),
+)
+def resend_otp(body: ResendOtpIn, ctx: Ctx = Depends(public_ctx)) -> RegisterStartedOut:
+    return auth_email.resend_otp(ctx, body.email)
 
 
 @router.get(

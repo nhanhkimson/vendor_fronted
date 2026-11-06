@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Kantumruy_Pro, Outfit } from "next/font/google";
 
+import { AppChrome } from "@/components/chrome";
 import { Providers } from "@/components/providers";
-import { SiteFooter, SiteHeader } from "@/components/site";
 
 import "./globals.css";
 
@@ -25,18 +25,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        {/* Apply saved locale + theme before paint to avoid a flash of wrong fonts/colors. */}
+        {/* Theme before paint. Locale is locked to English until translation work resumes. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var l=localStorage.getItem("bazaar-locale");if(l==="en"||l==="km"||l==="zh"){document.documentElement.dataset.locale=l;document.documentElement.lang=l==="zh"?"zh-CN":l;}var t=localStorage.getItem("theme");var d=window.matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(t!=="light"&&d)){document.documentElement.classList.add("dark");}else{document.documentElement.classList.remove("dark");}}catch(e){}})();`,
+            __html: `(function(){try{document.documentElement.dataset.locale="en";document.documentElement.lang="en";var t=localStorage.getItem("theme");var d=window.matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(t!=="light"&&d)){document.documentElement.classList.add("dark");}else{document.documentElement.classList.remove("dark");}}catch(e){}})();`,
           }}
         />
       </head>
       <body className="bazaar min-h-full">
         <Providers>
-          <SiteHeader />
-          <main>{children}</main>
-          <SiteFooter />
+          <AppChrome>{children}</AppChrome>
         </Providers>
       </body>
     </html>

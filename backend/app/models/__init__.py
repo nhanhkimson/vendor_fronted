@@ -20,7 +20,7 @@ from app.models.finance import (
     PayoutEvent,
     PayoutItem,
 )
-from app.models.identity import Permission, Role, RolePermission, User, UserRole
+from app.models.identity import EmailChallenge, Permission, Role, RolePermission, User, UserRole
 from app.models.order import Cart, CartLine, Order, OrderLine, PaymentIntent, SubOrder, SubOrderEvent
 from app.models.system import AuditLog, AuditLogArchive, Notification, OutboxEvent
 from app.models.trust import Conversation, ConversationMessage, Dispute, Review, ReviewEvent
@@ -41,6 +41,7 @@ __all__ = [
     "Coupon",
     "CouponRedemption",
     "Dispute",
+    "EmailChallenge",
     "LedgerEntry",
     "Notification",
     "Order",

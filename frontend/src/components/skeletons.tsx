@@ -13,20 +13,19 @@ export function HomeSkeleton() {
   return (
     <Frame label="Loading the shop">
       <div className="wrap space-y-12 py-8">
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-4">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-16 w-full max-w-md" />
-            <Skeleton className="h-4 w-full max-w-sm" />
+            <Skeleton className="h-12 w-full max-w-xl rounded-full" />
             <div className="flex gap-3">
-              <Skeleton className="h-9 w-24 rounded-full" />
               <Skeleton className="h-9 w-24 rounded-full" />
               <Skeleton className="h-9 w-28 rounded-full" />
             </div>
           </div>
           <Skeleton className="h-48" />
         </div>
-        <ProductGridSkeleton />
+        <ProductGridSkeleton count={12} />
       </div>
     </Frame>
   );
@@ -37,7 +36,7 @@ export function ProductGridSkeleton({ count = 8 }: { count?: number }) {
     <div className="grid-cards">
       {Array.from({ length: count }, (_, index) => (
         <div key={index} className="panel overflow-hidden">
-          <Skeleton className="h-40 rounded-none" />
+          <Skeleton className="product-media rounded-none" />
           <div className="space-y-2 p-4">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-4 w-40" />
@@ -55,7 +54,7 @@ export function CatalogueSkeleton() {
       <div className="wrap space-y-6 py-8">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-4 w-32" />
-        <ProductGridSkeleton />
+        <ProductGridSkeleton count={12} />
       </div>
     </Frame>
   );

@@ -84,3 +84,8 @@ class SummaryOut(Schema):
     listings_to_review: int = 0
     payouts_to_sign: int = 0
     flagged_reviews: int = 0
+    shops: int = 0
+    customers: int = 0
+    products: int = 0
+    gmv_cents: int = 0
+    commission_cents: int = 0

@@ -37,8 +37,8 @@ WAREHOUSE_BY_COUNTRY = {"US": "WH-EAST", "CA": "WH-CA", "UK": "WH-UK"}
 EDITABLE = ["name", "city", "headline", "about", "shipping_fee_cents", "processing_days", "warehouse_id", "internal_notes"]
 SHOP_EDITABLE = ["headline", "about", "city", "shipping_fee_cents", "processing_days", "payout_account"]
 STATUS_ACTIONS = {
-    "draft": ["submit"],
-    "rejected": ["submit"],
+    "draft": ["submit", "accept"],
+    "rejected": ["submit", "accept"],
     "under_review": ["verify", "reject"],
     "active": ["suspend"],
     "suspended": ["reinstate"],
@@ -236,13 +236,85 @@ def _move(ctx: Ctx, vendor: Vendor, target: str, reason: str | None, action: str
     ctx.audit("vendor", action, "vendor", vendor.id, before={"status": before}, after={"status": target}, reason=reason)
 
 
+def attach_sample_documents(ctx: Ctx, vendor_id: str) -> dict:
+    """Staff playground helper: fill missing document slots with sample PDFs so review can continue."""
+    from app.core.config import settings
+    from app.seed.files import sample_pdf
+
+    db = ctx.db
+    vendor = get_vendor(db, vendor_id)
+    if vendor.status not in ("draft", "rejected", "under_review"):
+        raise Conflict(f"{vendor.name} is {vendor.status.replace('_', ' ')} — documents are locked.", code="docs_locked")
+    if not vendor.documents:
+        _new_documents(db, vendor.id)
+        db.flush()
+        db.refresh(vendor)
+    attached = []
+    for doc in vendor.documents:
+        if doc.status not in ("missing", "rejected") and doc.file_path:
+            continue
+        relative = f"documents/{vendor.id}/{doc.id}.pdf"
+        target = settings.private_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(
+            sample_pdf(
+                [
+                    f"{doc.name} — SAMPLE",
+                    f"Shop: {vendor.name}",
+                    f"Kind: {doc.kind}",
+                    "Attached by staff for review practice.",
+                ]
+            )
+        )
+        doc.file_path = relative
+        doc.content_type = "application/pdf"
+        doc.original_filename = f"{doc.kind}-sample.pdf"
+        doc.status = "submitted"
+        doc.uploaded_at = utcnow()
+        attached.append(doc.kind)
+    if not attached:
+        raise Conflict("Every document is already uploaded.", code="docs_ready")
+    ctx.audit("vendor", "attach_sample_documents", "vendor", vendor.id, after={"documents": attached})
+    ctx.commit()
+    return vendor_out(db, vendor, staff_view=True)
+
+
+def accept_for_review(ctx: Ctx, vendor_id: str) -> dict:
+    """Staff pulls a draft or rejected shop into the review queue."""
+    db = ctx.db
+    vendor = get_vendor(db, vendor_id)
+    if vendor.status not in ("draft", "rejected"):
+        raise Conflict(
+            f"{vendor.name} is already {vendor.status.replace('_', ' ')}.",
+            code="not_awaiting_accept",
+        )
+    missing = [d.name for d in vendor.documents if d.status in ("missing", "rejected") or not d.file_path]
+    if missing:
+        raise Conflict(
+            f"Documents still missing: {', '.join(missing)}. Attach samples or wait for the seller to upload.",
+            code="documents_missing",
+            details={"documents": missing},
+        )
+    if not vendor.documents:
+        raise Conflict("This shop has no documents yet.", code="documents_missing")
+    _move(ctx, vendor, "under_review", "Accepted into review by staff", "accept_review")
+    _notify_reviewers(db, vendor)
+    ctx.commit()
+    return vendor_out(db, vendor, staff_view=True)
+
+
 def verify(ctx: Ctx, vendor_id: str) -> dict:
     db = ctx.db
     vendor = get_vendor(db, vendor_id)
-    pending = [d.name for d in vendor.documents if d.status != "verified"]
-    if pending and vendor.status == "under_review":
+    if vendor.status != "under_review":
         raise Conflict(
-            f"Approve every document first. Still to review: {', '.join(pending)}.",
+            f"Accept {vendor.name} into review first (currently {vendor.status.replace('_', ' ')}).",
+            code="not_under_review",
+        )
+    pending = [d.name for d in vendor.documents if d.status != "verified"]
+    if pending:
+        raise Conflict(
+            f"Mark every document real first. Still pending: {', '.join(pending)}.",
             code="documents_pending",
             details={"documents": pending},
         )
@@ -462,7 +534,17 @@ def submit_for_review(ctx: Ctx) -> dict:
     return vendor_out(db, vendor, staff_view=False)
 
 
-def apply(ctx: Ctx, *, name: str, country: str, city: str, headline: str, about: str, uploads: dict[str, UploadFile | None]) -> Vendor:
+def apply(
+    ctx: Ctx,
+    *,
+    name: str,
+    country: str,
+    city: str,
+    headline: str,
+    about: str,
+    uploads: dict[str, UploadFile | None],
+    shop_image: UploadFile | None = None,
+) -> Vendor:
     """'Sell on Bazaar': a signed-in customer opens a shop. It goes live after verification."""
     db = ctx.db
     user = ctx.user
@@ -485,6 +567,8 @@ def apply(ctx: Ctx, *, name: str, country: str, city: str, headline: str, about:
         )
         db.add(vendor)
         db.flush()
+        if shop_image is not None and shop_image.filename:
+            vendor.image_url = files.save_image(shop_image, "shops", vendor.id)
         docs = _new_documents(db, vendor.id)
         _event(db, vendor, None, "draft", user.id, "Application started")
         _attach_owner(db, user, vendor.id, user.id)
@@ -504,7 +588,12 @@ def apply(ctx: Ctx, *, name: str, country: str, city: str, headline: str, about:
             "vendor",
             vendor.id,
             before=None,
-            after={"name": vendor.name, "status": vendor.status, "documents": {d.kind: d.status for d in docs}},
+            after={
+                "name": vendor.name,
+                "status": vendor.status,
+                "image_url": vendor.image_url,
+                "documents": {d.kind: d.status for d in docs},
+            },
         )
     ctx.commit()
     db.expire_all()

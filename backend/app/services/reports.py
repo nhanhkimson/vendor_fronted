@@ -241,4 +241,26 @@ def summary(ctx: Ctx) -> dict:
             db.scalar(select(func.count()).select_from(Payout).where(Payout.status.in_(("requested", "pending_second_approval")))) or 0
         ),
         "flagged_reviews": int(db.scalar(select(func.count()).select_from(Review).where(Review.status == "flagged")) or 0),
+        "shops": int(db.scalar(select(func.count()).select_from(Vendor).where(Vendor.deleted_at.is_(None))) or 0),
+        "customers": int(
+            db.scalar(
+                select(func.count(func.distinct(UserRole.user_id)))
+                .select_from(UserRole)
+                .join(Role, Role.id == UserRole.role_id)
+                .where(Role.kind == "customer")
+            )
+            or 0
+        ),
+        "products": int(
+            db.scalar(
+                select(func.count())
+                .select_from(Product)
+                .where(Product.listing_status == "published", Product.archived_at.is_(None))
+            )
+            or 0
+        ),
+        "gmv_cents": int(db.scalar(select(func.coalesce(func.sum(SubOrder.charged_cents), 0)).where(SubOrder.status.notin_(CLOSED))) or 0),
+        "commission_cents": int(
+            db.scalar(select(func.coalesce(func.sum(SubOrder.commission_cents), 0)).where(SubOrder.status.notin_(CLOSED))) or 0
+        ),
     }

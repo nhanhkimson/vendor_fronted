@@ -119,8 +119,8 @@ DEMO_ACCOUNTS = [
         "email": "maya@bazaar.local",
         "name": "Maya R.",
         "role": "customer",
-        "home": "/account",
-        "try_this": "ទិញពីហាងពីរ ក្នុងរទេះមួយ បង់ដោយ 4242 4242 4242 4242 តាមដានដឹកជញ្ជូន បើកវិវាទ។",
+        "home": "/",
+        "try_this": "Shop and check out.",
         "blurb_kh": "អតិថិជន",
     },
     {
@@ -128,7 +128,7 @@ DEMO_ACCOUNTS = [
         "name": "Jess A.",
         "role": "vendor",
         "home": "/seller",
-        "try_this": "ដាក់ ឬមើលផលិតផល P19 ដឹក O-1001-V06 បន្ថែមស្តុក ស្រោមពែងដេរដៃ ស្នើទូទាត់។",
+        "try_this": "Run the shop and add products.",
         "blurb_kh": "អ្នកលក់",
     },
     {
@@ -136,7 +136,7 @@ DEMO_ACCOUNTS = [
         "name": "Kein Maker",
         "role": "vendor",
         "home": "/seller",
-        "try_this": "ស្នើទូទាត់ PAY-04។ ព្យាយាមមើលការកម្មង់របស់ Jess — បាន 404 (ហាងដាច់ដោយឡែក)។",
+        "try_this": "Run a second shop.",
         "blurb_kh": "អ្នកលក់ធំ",
     },
     {
@@ -144,7 +144,7 @@ DEMO_ACCOUNTS = [
         "name": "Daniel O.",
         "role": "super_admin",
         "home": "/admin",
-        "try_this": "កែសិទ្ធិ កំណត់តួនាទី រក្សាទុកកំណត់ហេតុ និងចុះហត្ថលេខាទូទាត់ដំបូង។",
+        "try_this": "Manage staff and payouts.",
         "blurb_kh": "អ្នកគ្រប់គ្រងជាន់ខ្ពស់",
     },
     {
@@ -152,7 +152,7 @@ DEMO_ACCOUNTS = [
         "name": "Ava K.",
         "role": "admin",
         "home": "/admin",
-        "try_this": "អនុម័តផលិតផល P19 នៅ /admin/listings ផ្ទៀងផ្ទាត់ សិល្បៈក្រដាសថ្មី កែអត្រាកម្រៃ។",
+        "try_this": "Approve shops and listings.",
         "blurb_kh": "អ្នកគ្រប់គ្រង",
     },
     {
@@ -160,15 +160,15 @@ DEMO_ACCOUNTS = [
         "name": "Lin S.",
         "role": "support",
         "home": "/admin",
-        "try_this": "ពិនិត្យផលិតផលនៅ /admin/listings ដាក់ទង់មតិ ចុះហត្ថលេខាទូទាត់ទីពីរ។",
+        "try_this": "Help buyers and sellers.",
         "blurb_kh": "ភ្នាក់ងារជំនួយ",
     },
     {
         "email": "theo@mail.local",
         "name": "Theo P.",
         "role": "customer",
-        "home": "/account",
-        "try_this": "បានប្រើ WELCOME10 រួចហើយ — គូប៉ុងនឹងត្រូវបដិសេធ (មួយនាក់ម្ដង)។",
+        "home": "/",
+        "try_this": "Shop as a second buyer.",
         "blurb_kh": "អតិថិជន",
     },
 ]

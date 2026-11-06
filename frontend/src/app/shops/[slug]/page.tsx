@@ -1,17 +1,8 @@
-import { ProductGrid } from "@/components/site";
+import { ShopView } from "@/components/storefront";
 import { serverApi, unwrap } from "@/lib/api";
 
 export default async function ShopPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const page = await unwrap(serverApi.GET("/api/store/shops/{slug}", { params: { path: { slug } } }));
-  return (
-    <div className="wrap space-y-6 py-8">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-secondary">{page.shop.city}</p>
-        <h1 className="serif text-5xl">{page.shop.name}</h1>
-        <p className="max-w-xl text-muted-foreground">{page.shop.about}</p>
-      </div>
-      <ProductGrid products={page.products} />
-    </div>
-  );
+  return <ShopView page={page} />;
 }

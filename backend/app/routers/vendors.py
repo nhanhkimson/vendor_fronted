@@ -64,6 +64,28 @@ def update_vendor(vendor_id: str, body: VendorUpdate, ctx: Ctx = Depends(require
 
 
 @router.post(
+    "/api/vendors/{vendor_id}/documents/sample",
+    response_model=VendorOut,
+    summary="Attach sample documents for a shop missing uploads",
+    description="Playground helper so staff can practice Mark real → Verify when a seller has not uploaded files yet.",
+    openapi_extra=audit_meta("vendor", "attach_sample_documents"),
+)
+def attach_sample_documents(vendor_id: str, ctx: Ctx = Depends(require("vendor:verify"))):
+    return vendors.attach_sample_documents(ctx, vendor_id)
+
+
+@router.post(
+    "/api/vendors/{vendor_id}/accept",
+    response_model=VendorOut,
+    summary="Accept a draft shop into review",
+    description="Moves draft or rejected to under_review so staff can check documents and verify.",
+    openapi_extra=audit_meta("vendor", "accept_review"),
+)
+def accept_for_review(vendor_id: str, ctx: Ctx = Depends(require("vendor:verify"))):
+    return vendors.accept_for_review(ctx, vendor_id)
+
+
+@router.post(
     "/api/vendors/{vendor_id}/verify",
     response_model=VendorOut,
     summary="Verify a vendor (under review to active)",
@@ -211,9 +233,9 @@ def submit_for_review(ctx: Ctx = Depends(require("vendor:update", "vendor"))):
     response_model=MeOut,
     status_code=201,
     summary="Sell on Bazaar: open a shop with your documents",
-    description="Any signed-in customer can apply. With all three documents attached the shop goes "
-    "straight to review; otherwise it stays a draft until they are uploaded in Seller Central. "
-    "The session cookie is refreshed so Seller Central opens immediately.",
+    description="Any signed-in customer can apply. Optional shop photo becomes the storefront banner. "
+    "With all three documents attached the shop goes straight to review; otherwise it stays a draft "
+    "until they are uploaded in Seller Central. The session cookie is refreshed so Seller Central opens immediately.",
     openapi_extra=audit_meta("vendor", "submit_application"),
 )
 def apply(
@@ -223,6 +245,7 @@ def apply(
     city: str = Form(default="", max_length=120),
     headline: str = Form(default="", max_length=160),
     about: str = Form(default="", max_length=4000),
+    shop_image: UploadFile | None = File(default=None),
     government_id: UploadFile | None = File(default=None),
     address_proof: UploadFile | None = File(default=None),
     payout_account: UploadFile | None = File(default=None),
@@ -235,6 +258,7 @@ def apply(
         city=city,
         headline=headline,
         about=about,
+        shop_image=shop_image,
         uploads={"government_id": government_id, "address_proof": address_proof, "payout_account": payout_account},
     )
     ctx.db.refresh(ctx.user)
