@@ -284,8 +284,8 @@ def test_section10_payout_needs_two_people_and_an_open_dispute_blocks_it(client,
         if not exists:
             conn.execute(
                 text(
-                    "INSERT INTO users (id, email, password_hash, name, city, source, vendor_id, is_active, created_at) "
-                    "VALUES ('sunday', 'sunday@firstsunday.local', :password, 'Sunday V.', 'United States', 'organic', 'V07', true, now())"
+                    "INSERT INTO users (id, email, password_hash, name, city, source, vendor_id, is_active, created_at, email_verified_at) "
+                    "VALUES ('sunday', 'sunday@firstsunday.local', :password, 'Sunday V.', 'United States', 'organic', 'V07', true, now(), now())"
                 ),
                 {"password": hash_password("demo")},
             )

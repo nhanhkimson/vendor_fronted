@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bazaar — Project Slice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4eee4;
+      --ink: #171411;
+      --muted: #6b6258;
+      --forest: #24362c;
+      --forest-deep: #121916;
+      --card: #fffcf7;
+      --line: #e2d8c8;
+      --clay: #b8572a;
+      --slide-w: 1280px;
+      --slide-h: 720px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--forest-deep);
+      color: var(--ink);
+      font-family: "Source Sans 3", system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    .stage {
+      height: 100vh;
+      width: 100vw;
+      display: grid;
+      place-items: center;
+      padding: 1.25rem 0.5rem 3.6rem;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(201, 213, 204, 0.08), transparent 55%),
+        var(--forest-deep);
+    }
+
+    .frame {
+      /* Fill almost the whole projector screen — bigger content */
+      width: min(99.2vw, calc((100vh - 4.4rem) * 16 / 9));
+      aspect-ratio: 16 / 9;
+      position: relative;
+      border-radius: 0.45rem;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(243, 235, 224, 0.08),
+        0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .deck {
+      position: absolute;
+      inset: 0;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: clamp(1.8rem, 4.5%, 3.4rem) clamp(2rem, 5.2%, 4rem);
+      background:
+        radial-gradient(ellipse 70% 55% at 100% 0%, rgba(36, 54, 44, 0.1), transparent 50%),
+        linear-gradient(155deg, #f8f2e8 0%, var(--bg) 48%, #ebe3d4 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: clamp(0.7rem, 1.6vw, 1.25rem);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(18px);
+      transition: opacity 0.28s ease, transform 0.28s ease, visibility 0.28s;
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      background: linear-gradient(180deg, var(--forest), #3d5a4a);
+    }
+
+    .slide.is-active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(0);
+      z-index: 2;
+    }
+
+    .slide > * { position: relative; z-index: 1; max-width: 92%; }
+
+    .kicker {
+      font-size: clamp(1rem, 1.85vw, 1.25rem);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--clay);
+      font-weight: 700;
+    }
+
+    h1, h2 {
+      font-family: Fraunces, Georgia, serif;
+      font-weight: 700;
+      color: var(--forest);
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+
+    h1 { font-size: clamp(3.2rem, 7.2vw, 5.6rem); }
+    h2 { font-size: clamp(2.4rem, 5.2vw, 4rem); }
+
+    .lede {
+      font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+      color: var(--muted);
+      max-width: 42rem;
+      line-height: 1.4;
+    }
+
+    .meta {
+      margin-top: 0.5rem;
+      font-size: clamp(1.25rem, 2.2vw, 1.55rem);
+      line-height: 1.55;
+      color: var(--ink);
+    }
+
+    .meta strong { color: var(--forest); }
+
+    .brand-mark {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+      color: var(--clay);
+      font-weight: 700;
+    }
+
+    .title-slide {
+      justify-content: flex-end;
+      padding-bottom: clamp(2.2rem, 6%, 4rem);
+    }
+
+    .title-slide::after {
+      content: "";
+      position: absolute;
+      right: -8%;
+      top: -20%;
+      width: 48%;
+      height: 90%;
+      background:
+        radial-gradient(circle at 40% 45%, rgba(36, 54, 44, 0.18), transparent 62%),
+        linear-gradient(135deg, transparent 30%, rgba(184, 87, 42, 0.08));
+      pointer-events: none;
+    }
+
+    .grid3, .grid4 {
+      display: grid;
+      gap: clamp(0.8rem, 1.6vw, 1.2rem);
+      margin-top: 0.45rem;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .tile {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 0.7rem;
+      padding: clamp(1rem, 2vw, 1.45rem);
+      min-height: 100%;
+      box-shadow: 0 8px 20px rgba(36, 54, 44, 0.05);
+    }
+
+    .tile .num {
+      display: inline-grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      background: var(--forest);
+      color: #f6efe3;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.55rem;
+    }
+
+    .tile h3 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+      color: var(--forest);
+      margin-bottom: 0.35rem;
+    }
+
+    .tile p {
+      color: var(--muted);
+      font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+      line-height: 1.35;
+    }
+
+    .tile code, .points code, .lede code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.92em;
+      background: rgba(36, 54, 44, 0.07);
+      padding: 0.05em 0.35em;
+      border-radius: 0.3rem;
+      color: var(--forest);
+    }
+
+    .process {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 0.55rem;
+      margin-top: 0.7rem;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .process .step {
+      flex: 1 1 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 0.65rem;
+      padding: 1.05rem 0.8rem;
+      text-align: center;
+      min-width: 0;
+    }
+
+    .process .step .n {
+      display: block;
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.55rem, 2.8vw, 2.1rem);
+      color: var(--clay);
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+
+    .process .step .label {
+      display: block;
+      font-weight: 700;
+      color: var(--forest);
+      font-size: clamp(1rem, 1.7vw, 1.25rem);
+      line-height: 1.25;
+    }
+
+    .process .arrow {
+      flex: 0 0 auto;
+      align-self: center;
+      color: var(--clay);
+      font-weight: 700;
+      font-size: 1.45rem;
+      opacity: 0.85;
+    }
+
+    ul.points {
+      list-style: none;
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 0.55rem;
+      width: min(48rem, 100%);
+    }
+
+    ul.points li {
+      font-size: clamp(1.2rem, 2.1vw, 1.5rem);
+      line-height: 1.35;
+      padding: 0.9rem 1.1rem;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--forest);
+      border-radius: 0.45rem;
+      color: var(--ink);
+    }
+
+    ul.points li span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.88em;
+      margin-top: 0.15rem;
+    }
+
+    .footer-note {
+      margin-top: 0.85rem;
+      font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+      color: var(--muted);
+    }
+
+    .chrome {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 1.1rem 0.9rem;
+      background: linear-gradient(180deg, transparent, rgba(18, 25, 22, 0.92) 35%);
+      color: #f3ebe0;
+      font-size: 0.85rem;
+      user-select: none;
+    }
+
+    .chrome .left,
+    .chrome .right {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 9rem;
+    }
+
+    .chrome .right { justify-content: flex-end; }
+
+    .chrome button {
+      appearance: none;
+      border: 1px solid rgba(243, 235, 224, 0.22);
+      background: rgba(36, 54, 44, 0.65);
+      color: #f6efe3;
+      border-radius: 0.45rem;
+      padding: 0.4rem 0.7rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chrome button:hover { background: rgba(54, 78, 66, 0.9); }
+    .chrome button:disabled { opacity: 0.35; cursor: default; }
+
+    .dots {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+    }
+
+    .dots button {
+      width: 0.55rem;
+      height: 0.55rem;
+      padding: 0;
+      border-radius: 999px;
+      border: none;
+      background: rgba(243, 235, 224, 0.28);
+      min-width: 0;
+    }
+
+    .dots button.is-on {
+      width: 1.35rem;
+      background: #c9d5cc;
+    }
+
+    .counter {
+      font-variant-numeric: tabular-nums;
+      opacity: 0.9;
+      margin-right: 0.35rem;
+    }
+
+    .hint {
+      position: fixed;
+      top: 0.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      background: rgba(36, 54, 44, 0.88);
+      color: #f6efe3;
+      font-size: 0.75rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+      opacity: 0.9;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    .hint.is-gone { opacity: 0; }
+
+    .click-zones {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .click-zones .zone {
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+
+    @media (max-width: 720px) {
+      .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid3 { grid-template-columns: 1fr; }
+      .process { flex-wrap: wrap; }
+      .process .arrow { display: none; }
+      .process .step { flex: 1 1 40%; }
+      body { overflow: auto; }
+      .stage { height: auto; min-height: 100vh; padding-bottom: 5rem; }
+    }
+
+    @media print {
+      @page { size: landscape; margin: 0; }
+      html, body {
+        overflow: visible;
+        background: white;
+        height: auto;
+      }
+      .hint, .chrome, .click-zones { display: none !important; }
+      .stage {
+        display: block;
+        height: auto;
+        padding: 0;
+        background: white;
+      }
+      .frame {
+        width: 100%;
+        aspect-ratio: auto;
+        border-radius: 0;
+        box-shadow: none;
+        position: static;
+        overflow: visible;
+      }
+      .deck { position: static; }
+      .slide {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: 100vh;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        pointer-events: auto;
+        page-break-after: always;
+        break-after: page;
+        box-shadow: none;
+      }
+      .slide:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hint" id="hint">← → or Space · click sides · F fullscreen · P print PDF</div>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="click-zones" aria-hidden="true">
+        <button type="button" class="zone" id="zonePrev" title="Previous"></button>
+        <button type="button" class="zone" id="zoneNext" title="Next"></button>
+      </div>
+
+      <div class="deck" id="deck">
+        <!-- 1 Title -->
+        <section class="slide title-slide is-active" data-slide="0">
+          <div class="brand-mark">Bazaar</div>
+          <h1>Multi-vendor marketplace</h1>
+          <p class="lede">One website. Seller tools. Staff console. Clear maker-checker control.</p>
+          <p class="meta">
+            <strong>Nhanh Kimson</strong>, <strong>Ly Fanu</strong>, <strong>Barang LeangHour</strong><br />
+            Room 206
+          </p>
+        </section>
+
+        <!-- 2 Surfaces -->
+        <section class="slide" data-slide="1">
+          <p class="kicker">What it is</p>
+          <h2>Three surfaces, one platform</h2>
+          <p class="lede">Buyers, sellers, and staff each get their own place — all talk to the same API.</p>
+          <div class="grid3">
+            <div class="tile">
+              <span class="num">1</span>
+              <h3>Website</h3>
+              <p>Browse shops &amp; products, cart, checkout, track orders.</p>
+            </div>
+            <div class="tile">
+              <span class="num">2</span>
+              <h3>Seller</h3>
+              <p>Manage catalogue, stock, ship orders, ask for payouts.</p>
+            </div>
+            <div class="tile">
+              <span class="num">3</span>
+              <h3>Admin</h3>
+              <p>Verify shops, publish products, disputes, payouts.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3 Roles -->
+        <section class="slide" data-slide="2">
+          <p class="kicker">Who uses it</p>
+          <h2>Four jobs, one login</h2>
+          <p class="lede">Each role has one main job. Staff share the Admin console.</p>
+          <div class="grid4">
+            <div class="tile">
+              <h3>Customer</h3>
+              <p>Buy and track. Home: <code>/account</code></p>
+            </div>
+            <div class="tile">
+              <h3>Vendor</h3>
+              <p>Run a shop. Home: <code>/seller</code></p>
+            </div>
+            <div class="tile">
+              <h3>Staff</h3>
+              <p>Check shops &amp; listings. Home: <code>/admin</code></p>
+            </div>
+            <div class="tile">
+              <h3>Owner</h3>
+              <p>Roles &amp; control. Home: <code>/admin</code></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4 Buy -->
+        <section class="slide" data-slide="3">
+          <p class="kicker">Buy flow</p>
+          <h2>From browse to e-receipt</h2>
+          <p class="lede">Guests can shop. Email OTP unlocks checkout. Payment sends an e-receipt.</p>
+          <div class="process">
+            <div class="step"><span class="n">1</span><span class="label">Browse</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">2</span><span class="label">Cart</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">3</span><span class="label">OTP if needed</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">4</span><span class="label">Pay</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">5</span><span class="label">Track + receipt</span></div>
+          </div>
+          <ul class="points">
+            <li>Many shops, one checkout<span>Each shop ships its own part of the order</span></li>
+            <li>Test card <code>4242…4242</code> is approved</li>
+          </ul>
+        </section>
+
+        <!-- 5 Sell -->
+        <section class="slide" data-slide="4">
+          <p class="kicker">Sell flow</p>
+          <h2>Open a shop in a few steps</h2>
+          <p class="lede">Register with OTP, create the shop (with photo), then add products.</p>
+          <div class="process">
+            <div class="step"><span class="n">1</span><span class="label">Register + OTP</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">2</span><span class="label">Shop + photo</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">3</span><span class="label">Add products</span></div>
+            <span class="arrow">→</span>
+            <div class="step"><span class="n">4</span><span class="label">Staff publish</span></div>
+          </div>
+          <ul class="points">
+            <li>Start at <code>/sell</code> · then land on <code>/seller/products</code></li>
+          </ul>
+        </section>
+
+        <!-- 6 Maker-checker -->
+        <section class="slide" data-slide="5">
+          <p class="kicker">Control</p>
+          <h2>Maker-checker: two people</h2>
+          <p class="lede">The person who submits cannot be the only one who approves.</p>
+          <div class="grid3">
+            <div class="tile">
+              <span class="num">1</span>
+              <h3>Shop</h3>
+              <p>Vendor submits → staff verify → shop goes live.</p>
+            </div>
+            <div class="tile">
+              <span class="num">2</span>
+              <h3>Product</h3>
+              <p>Vendor sends for review → staff publish or reject.</p>
+            </div>
+            <div class="tile">
+              <span class="num">3</span>
+              <h3>Payout</h3>
+              <p>Vendor requests → two different staff must sign.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7 Doors -->
+        <section class="slide" data-slide="6">
+          <p class="kicker">Navigation</p>
+          <h2>Login cards open the right door</h2>
+          <p class="lede">Same login page. Role decides where you land.</p>
+          <ul class="points">
+            <li>Customer → <code>/account</code></li>
+            <li>Vendor → <code>/seller</code></li>
+            <li>Staff / Owner → <code>/admin</code></li>
+            <li>Demo password for every seed account: <strong>demo</strong></li>
+          </ul>
+        </section>
+
+        <!-- 8 Tech -->
+        <section class="slide" data-slide="7">
+          <p class="kicker">Tech (simple)</p>
+          <h2>Next.js → Flask → Postgres</h2>
+          <p class="lede">Browser only talks to Next.js. API and media are proxied.</p>
+          <ul class="points">
+            <li>Next.js — website + dashboards</li>
+            <li>Flask API — REST + docs at <code>/api/docs</code></li>
+            <li>PostgreSQL + RLS — each shop only sees its own data</li>
+            <li>Money in integer cents — no float mistakes</li>
+          </ul>
+        </section>
+
+        <!-- 9 Demo -->
+        <section class="slide" data-slide="8">
+          <p class="kicker">Demo</p>
+          <h2>Try it in minutes</h2>
+          <p class="lede">Run <code>./dev.sh</code> then open these.</p>
+          <ul class="points">
+            <li>Site — <code>http://127.0.0.1:3000</code></li>
+            <li>Login cards — Maya (buy), Jess (sell), Ava (admin)</li>
+            <li>Password — <strong>demo</strong> · Card — <strong>4242 4242 4242 4242</strong></li>
+            <li>OTP / e-receipts (local) — <code>backend/private/mailbox/</code></li>
+          </ul>
+        </section>
+
+        <!-- 10 Takeaway -->
+        <section class="slide" data-slide="9">
+          <p class="kicker">Takeaway</p>
+          <h2>What works today</h2>
+          <ul class="points">
+            <li>Email OTP register and guest checkout</li>
+            <li>Shop apply with photo + seller dashboards</li>
+            <li>Maker-checker for shops, listings, payouts</li>
+            <li>Pay → order track + e-receipt</li>
+          </ul>
+          <p class="footer-note">Bazaar · Room 206 · Nhanh Kimson, Ly Fanu, Barang LeangHour</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="chrome" role="navigation" aria-label="Slide controls">
+    <div class="left">
+      <button type="button" id="btnPrev" aria-label="Previous slide">← Prev</button>
+    </div>
+    <div class="dots" id="dots" aria-label="Slide dots"></div>
+    <div class="right">
+      <span class="counter" id="counter">1 / 10</span>
+      <button type="button" id="btnFull" aria-label="Fullscreen">Fullscreen</button>
+      <button type="button" id="btnNext" aria-label="Next slide">Next →</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const total = slides.length;
+      const counter = document.getElementById("counter");
+      const dotsWrap = document.getElementById("dots");
+      const btnPrev = document.getElementById("btnPrev");
+      const btnNext = document.getElementById("btnNext");
+      const btnFull = document.getElementById("btnFull");
+      const hint = document.getElementById("hint");
+      let i = 0;
+
+      slides.forEach((_, idx) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-label", "Go to slide " + (idx + 1));
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          go(idx);
+        });
+        dotsWrap.appendChild(b);
+      });
+      const dots = Array.from(dotsWrap.querySelectorAll("button"));
+
+      function go(n) {
+        i = Math.max(0, Math.min(total - 1, n));
+        slides.forEach((s, idx) => s.classList.toggle("is-active", idx === i));
+        dots.forEach((d, idx) => d.classList.toggle("is-on", idx === i));
+        counter.textContent = (i + 1) + " / " + total;
+        btnPrev.disabled = i === 0;
+        btnNext.disabled = i === total - 1;
+        try {
+          history.replaceState(null, "", "#" + (i + 1));
+        } catch (_) {}
+      }
+
+      function next() { go(i + 1); }
+      function prev() { go(i - 1); }
+
+      btnPrev.addEventListener("click", (e) => { e.stopPropagation(); prev(); });
+      btnNext.addEventListener("click", (e) => { e.stopPropagation(); next(); });
+      document.getElementById("zonePrev").addEventListener("click", prev);
+      document.getElementById("zoneNext").addEventListener("click", next);
+
+      btnFull.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const root = document.documentElement;
+        if (!document.fullscreenElement) {
+          root.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+          e.preventDefault();
+          next();
+        } else if (e.key === "ArrowLeft" || e.key === "PageUp" || e.key === "Backspace") {
+          e.preventDefault();
+          prev();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          go(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          go(total - 1);
+        } else if (e.key === "f" || e.key === "F") {
+          e.preventDefault();
+          btnFull.click();
+        } else if (e.key === "p" || e.key === "P") {
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            window.print();
+          }
+        }
+      });
+
+      const hash = parseInt((location.hash || "").replace("#", ""), 10);
+      go(Number.isFinite(hash) && hash >= 1 && hash <= total ? hash - 1 : 0);
+
+      setTimeout(() => hint.classList.add("is-gone"), 4500);
+    })();
+  </script>
+</body>
+</html>

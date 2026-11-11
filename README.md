@@ -6,7 +6,7 @@ A multi-vendor marketplace with three surfaces: public **Website**, **Seller Das
 
 - `backend/` Flask and PostgreSQL. Swagger UI is at `/api/docs`.
 - `frontend/` Next.js storefront, Seller Dashboard, and Admin Console. The browser only talks to Next.js; `/api` and `/media` are forwarded to the API.
-- `docs/` system requirements, roles, architecture, and diagrams. Start with [docs/system-requirements.md](docs/system-requirements.md).
+- `docs/` system requirements, roles, architecture, and diagrams. Start with [docs/system-requirements.md](docs/system-requirements.md). Easy 10-slide overview: [docs/project-slice.html](docs/project-slice.html) (arrows / Space / F fullscreen) or [docs/project-slice.pptx](docs/project-slice.pptx).
 
 ## Run it on this Mac
 
