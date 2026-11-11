@@ -24,7 +24,8 @@ export async function POST(request: Request) {
   const email = String(form.get("email") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
   const next = String(form.get("next") || "");
-  const failed = new URL("/login", browserOrigin(request));
+  const origin = browserOrigin(request);
+  const failed = new URL("/login", origin);
   failed.searchParams.set("error", "1");
   if (next) failed.searchParams.set("next", safePath(next, ""));
 
@@ -34,10 +35,21 @@ export async function POST(request: Request) {
     body: JSON.stringify({ email, password }),
     cache: "no-store",
   });
-  if (!upstream.ok) return NextResponse.redirect(failed, 303);
+
+  if (!upstream.ok) {
+    const payload = (await upstream.json().catch(() => null)) as { code?: string } | null;
+    if (payload?.code === "email_unverified" && email) {
+      const verify = new URL("/register", origin);
+      verify.searchParams.set("email", email);
+      verify.searchParams.set("verify", "1");
+      if (next) verify.searchParams.set("next", safePath(next, ""));
+      return NextResponse.redirect(verify, 303);
+    }
+    return NextResponse.redirect(failed, 303);
+  }
 
   const me = (await upstream.json()) as { home?: string };
-  const destination = new URL(safePath(next, me.home || "/account"), browserOrigin(request));
+  const destination = new URL(safePath(next, me.home || "/account"), origin);
   const response = NextResponse.redirect(destination, 303);
   const cookies = upstream.headers.getSetCookie?.() ?? [];
   for (const cookie of cookies) response.headers.append("set-cookie", cookie);

@@ -17,6 +17,8 @@ backend/scripts/create_db.sh
 cd backend && uv run alembic upgrade head && uv run python -m app.seed
 ```
 
+`alembic upgrade head` includes migration **0006** (`email_verified_at`, `email_challenges`) for OTP signup. With SMTP off, OTP codes and e-receipts land in `backend/private/mailbox/`. Screen map: [docs/screen-routing.md](docs/screen-routing.md).
+
 Then, from this folder:
 
 ```bash
@@ -55,12 +57,16 @@ Test card `4242 4242 4242 4242` is approved. `4000 0000 0000 0002` is declined a
 
 ## Pages
 
-| Area | URL |
+Primary sidebar routes (full map + flows: [docs/screen-routing.md](docs/screen-routing.md)):
+
+| Area | Sidebar URLs |
 | --- | --- |
-| Shop | `/`, `/shops`, `/shops/[slug]`, `/products/[id]`, `/search`, `/cart`, `/checkout`, `/reviews`, `/sell`, `/about`, `/guide` |
-| Customer | `/account`, `/account/orders`, `/account/wishlist`, `/account/messages`, `/account/notifications`, `/account/settings` |
-| Seller | `/seller`, `/seller/products`, `/seller/inventory`, `/seller/orders`, `/seller/promotions`, `/seller/payouts`, `/seller/reports`, `/seller/storefront`, `/seller/messages`, `/seller/reviews` |
-| Admin | `/admin`, `/admin/vendors`, `/admin/products`, `/admin/categories`, `/admin/orders`, `/admin/customers`, `/admin/reviews`, `/admin/coupons`, `/admin/disputes`, `/admin/roles`, `/admin/audit`, `/admin/commissions`, `/admin/payouts`, `/admin/reports` |
+| Shop | `/`, `/shops`, `/shops/[slug]`, `/products/[id]`, `/search`, `/cart`, `/checkout`, `/register`, `/login`, `/sell`, `/reviews`, `/about`, `/guide` |
+| Customer | `/account`, `/account/orders`, `/account/settings` (+ wishlist / messages / notifications as deep links) |
+| Seller | `/seller`, `/seller/products`, `/seller/orders`, `/seller/promotions`, `/seller/storefront`, `/seller/payouts` |
+| Admin | `/admin`, `/admin/vendors`, `/admin/listings`, `/admin/disputes`, `/admin/reports`, `/admin/roles` |
+
+Deep-link staff/seller screens still work (inventory, audit, commissions, payouts, etc.).
 
 ## Tests and docs
 

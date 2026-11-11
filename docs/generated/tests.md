@@ -19,9 +19,17 @@
 | Permission revoke is immediate | `test_revoke_permission_takes_effect_on_the_next_request` |
 | Vendor CSV is only their shop | `test_low_stock_notification_and_vendor_csv_is_only_their_shop` |
 
-Pytest exit code: 0
+Pytest exit code: 1
 
 ```
-....................                                                     [100%]
-20 passed in 5.41s
+............F...............                                             [100%]
+=================================== FAILURES ===================================
+E   AssertionError: {"code":"email_unverified","detail":"Verify your email first. Enter the code we sent, or register again to get a new one."}
+      
+    assert 403 == 200
+     +  where 403 = <app.flaskapi.testing._Resp object at 0x10e939b70>.status_code
+/Users/apple/SOFTWARE ENGINEERING/Y4S2/Project Management /bazaar-platform/backend/tests/test_marketplace.py:300: AssertionError: {"code":"email_unverified","detail":"Verify your email first. Enter the code we sent, or register again to get a new one."}
+=========================== short test summary info ============================
+FAILED tests/test_marketplace.py::test_section10_payout_needs_two_people_and_an_open_dispute_blocks_it
+1 failed, 27 passed in 5.95s
 ```

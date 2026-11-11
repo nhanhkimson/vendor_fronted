@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Field, FlowSteps } from "@/components/flow";
@@ -18,13 +18,27 @@ function RegisterForm() {
   const { refresh } = useSession();
   const next = params.get("next") || "/";
   const selling = next.startsWith("/sell");
-  const [step, setStep] = useState<"details" | "otp">("details");
+  const resumeEmail = (params.get("email") || "").trim().toLowerCase();
+  const resumeVerify = params.get("verify") === "1";
+  const [step, setStep] = useState<"details" | "otp">(resumeVerify && resumeEmail ? "otp" : "details");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(resumeEmail);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!resumeVerify || !resumeEmail) return;
+    void resendOtp(resumeEmail)
+      .then((started) => {
+        setDevCode(started.dev_code || null);
+        toast.success("We sent a new verification code");
+      })
+      .catch(() => {
+        toast.message("Enter the code from your email, or register again to resend");
+      });
+  }, [resumeVerify, resumeEmail]);
 
   async function submitDetails(event: React.FormEvent) {
     event.preventDefault();

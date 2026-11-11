@@ -1,6 +1,28 @@
 # Sequences
 
-## Split checkout
+Screen routes for these flows: [screen-routing.md](screen-routing.md).
+
+## Register with email OTP
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Web
+  participant API
+  participant Mail
+  User->>Web: /register details
+  Web->>API: POST /api/auth/register
+  API->>Mail: 6-digit code (mailbox or SMTP)
+  API-->>Web: challenge_id (+ dev_code in demo)
+  User->>Web: Enter code
+  Web->>API: POST /api/auth/verify-email
+  API-->>Web: Session cookie + MeOut
+  Web-->>User: next path or home
+```
+
+Unverified accounts cannot `POST /api/auth/login` (`email_unverified`). Resend uses `POST /api/auth/resend-otp`.
+
+## Split checkout (+ e-receipt)
 
 ```mermaid
 sequenceDiagram
@@ -8,7 +30,8 @@ sequenceDiagram
   participant Web
   participant API
   participant DB
-  Maya->>Web: Pay
+  participant Mail
+  Maya->>Web: Pay on /checkout
   Web->>API: POST /api/checkout
   API->>DB: Reserve stock if on_hand - reserved >= qty
   API-->>Maya: Payment intent
@@ -16,10 +39,25 @@ sequenceDiagram
   API->>DB: One parent order, one sub-order per shop
   API->>DB: Frozen commission lines and a balanced journal
   API->>DB: Delete the purchased cart lines as the customer
-  API-->>Maya: Order id
+  API->>Mail: E-receipt (mailbox or SMTP)
+  API-->>Maya: Order id → /account/orders/{id}
 ```
 
-Confirming the same intent again returns the same order. A declined test card releases the reservation and the coupon use.
+Confirming the same intent again returns the same order. A declined test card releases the reservation and the coupon use. Mail failure never rolls back a successful payment.
+
+## Open a shop with photo
+
+```mermaid
+sequenceDiagram
+  participant Seller
+  participant Web
+  participant API
+  Seller->>Web: /sell OTP (if needed)
+  Seller->>Web: Name + shop photo
+  Web->>API: POST /api/vendor-applications (multipart shop_image)
+  API-->>Web: MeOut kind=vendor
+  Web-->>Seller: /seller/products
+```
 
 ## Two-person payout
 

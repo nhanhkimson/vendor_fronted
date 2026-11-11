@@ -73,6 +73,24 @@ Terminal: paid.
 
 ```mermaid
 stateDiagram-v2
+  draft --> pending_review: vendor submits
+  draft --> archived: archive
+  pending_review --> published: staff approve
+  pending_review --> rejected: staff reject (reason)
+  pending_review --> draft: vendor withdraws
+  pending_review --> archived: archive
+  published --> pending_review: material edit needs re-check
+  published --> archived: archive
+  rejected --> draft: vendor edits
+  rejected --> pending_review: vendor resubmits
+  rejected --> archived: archive
+  archived --> draft: restore to draft
+```
+
+Terminal: none.
+
+```mermaid
+stateDiagram-v2
   published --> flagged: flag for moderation
   published --> removed: remove (reason)
   flagged --> published: restore

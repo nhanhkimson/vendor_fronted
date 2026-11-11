@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bazaar — Screen routing (paste into Figma / FigJam)</title>
+    <style>
+      :root {
+        --bg: #f4eee4;
+        --card: #fffcf7;
+        --ink: #171411;
+        --muted: #6b6258;
+        --forest: #24362c;
+        --copper: #b8572a;
+        --line: #e2d8c8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.45 "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        padding: 40px;
+      }
+      h1 { font-family: Georgia, serif; font-size: 42px; margin: 0 0 8px; }
+      h2 { font-family: Georgia, serif; font-size: 24px; margin: 32px 0 12px; }
+      p.lead { color: var(--muted); max-width: 640px; }
+      .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+      .frame {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 18px;
+        min-width: 180px;
+        max-width: 220px;
+      }
+      .frame .route {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--copper);
+        margin-bottom: 6px;
+      }
+      .frame .title { font-family: Georgia, serif; font-size: 20px; margin: 0 0 6px; }
+      .frame .next { font-size: 12px; color: var(--muted); }
+      .arrow {
+        align-self: center;
+        color: var(--forest);
+        font-size: 22px;
+        padding: 0 4px;
+      }
+      .lane {
+        border-left: 3px solid var(--forest);
+        padding-left: 16px;
+        margin: 28px 0;
+      }
+      .lane h3 {
+        margin: 0 0 12px;
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--forest);
+      }
+      table { border-collapse: collapse; width: 100%; max-width: 960px; background: var(--card); }
+      th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+      th { background: #ebe3d4; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+      code { font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Bazaar screen routing</h1>
+    <p class="lead">
+      Import this page into Figma (File → Place image / copy frames) or redraw from the flow lanes.
+      Canonical text map: <code>docs/screen-routing.md</code>.
+    </p>
+
+    <div class="lane">
+      <h3>A · Register → buy → e-receipt</h3>
+      <div class="row">
+        <div class="frame"><div class="route">/register</div><div class="title">Details</div><div class="next">Name, email, password</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/register</div><div class="title">OTP</div><div class="next">verify-email</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/search</div><div class="title">Browse</div><div class="next">Add to cart</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/checkout</div><div class="title">Pay</div><div class="next">4242… → receipt mail</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/account/orders/[id]</div><div class="title">Track</div><div class="next">Parcel status</div></div>
+      </div>
+    </div>
+
+    <div class="lane">
+      <h3>B · Open a shop</h3>
+      <div class="row">
+        <div class="frame"><div class="route">/sell</div><div class="title">Account OTP</div><div class="next">If not signed in</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/sell</div><div class="title">Shop + photo</div><div class="next">shop_image required</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/seller/products</div><div class="title">Add product</div><div class="next">Photo, price, send review</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/admin/vendors</div><div class="title">Verify shop</div><div class="next">Staff</div></div>
+      </div>
+    </div>
+
+    <div class="lane">
+      <h3>C · Listing maker-checker</h3>
+      <div class="row">
+        <div class="frame"><div class="route">/seller/products</div><div class="title">Draft</div><div class="next">Send for review</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/admin/listings</div><div class="title">Publish</div><div class="next">Approve or reject</div></div>
+        <div class="arrow">→</div>
+        <div class="frame"><div class="route">/</div><div class="title">Live</div><div class="next">Buyers see it</div></div>
+      </div>
+    </div>
+
+    <div class="lane">
+      <h3>D · Login doors</h3>
+      <div class="row">
+        <div class="frame"><div class="route">/login</div><div class="title">Customer</div><div class="next">→ /account</div></div>
+        <div class="frame"><div class="route">/login</div><div class="title">Seller</div><div class="next">→ /seller</div></div>
+        <div class="frame"><div class="route">/login</div><div class="title">Staff</div><div class="next">→ /admin</div></div>
+        <div class="frame"><div class="route">/login</div><div class="title">Owner</div><div class="next">→ /admin + roles</div></div>
+      </div>
+    </div>
+
+    <h2>Sidebar routes</h2>
+    <table>
+      <thead>
+        <tr><th>Area</th><th>Routes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Customer</td><td><code>/account</code>, <code>/account/orders</code>, <code>/account/settings</code></td></tr>
+        <tr><td>Seller</td><td><code>/seller</code>, <code>/seller/products</code>, <code>/seller/orders</code>, <code>/seller/promotions</code>, <code>/seller/storefront</code>, <code>/seller/payouts</code></td></tr>
+        <tr><td>Admin</td><td><code>/admin</code>, <code>/admin/vendors</code>, <code>/admin/listings</code>, <code>/admin/disputes</code>, <code>/admin/reports</code>, <code>/admin/roles</code></td></tr>
+      </tbody>
+    </table>
+  </body>
+</html>

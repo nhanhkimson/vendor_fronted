@@ -20,7 +20,7 @@ Every route declares a permission. Every mutating route declares the audit actio
 | POST | `/api/account/wishlist` | `authenticated` | customer | customer.wishlist_add |
 | DELETE | `/api/account/wishlist/{product_id}` | `authenticated` | customer | customer.wishlist_remove |
 | GET | `/api/admin/summary` | `report:read` | platform |  |
-| GET | `/api/audit-logs` | `audit:read` | platform |  |
+| GET | `/api/audit-logs/` | `audit:read` | platform |  |
 | GET | `/api/audit-logs/archive` | `audit:read` | platform |  |
 | POST | `/api/audit-logs/archive` | `audit:archive` | platform | audit.archive |
 | GET | `/api/audit-logs/export` | `audit:export` | platform |  |
@@ -29,8 +29,10 @@ Every route declares a permission. Every mutating route declares the audit actio
 | POST | `/api/auth/login` | `public` | public | identity.login |
 | POST | `/api/auth/logout` | `authenticated` | customer | identity.logout |
 | GET | `/api/auth/me` | `authenticated` | customer |  |
-| POST | `/api/auth/register` | `public` | public | identity.register |
+| POST | `/api/auth/register` | `public` | public | identity.register_start |
+| POST | `/api/auth/resend-otp` | `public` | public | identity.otp_resend |
 | POST | `/api/auth/token` | `public` | public | identity.login |
+| POST | `/api/auth/verify-email` | `public` | public | identity.verify_email |
 | GET | `/api/cart` | `order:create` | customer |  |
 | DELETE | `/api/cart/coupon` | `coupon:apply` | customer | coupon.remove |
 | POST | `/api/cart/coupon` | `coupon:apply` | customer | coupon.apply |
@@ -66,9 +68,12 @@ Every route declares a permission. Every mutating route declares the audit actio
 | GET | `/api/inventory` | `stock:read` | platform |  |
 | GET | `/api/ledger` | `commission:read` | platform |  |
 | GET | `/api/ledger/trial-balance` | `commission:read` | platform |  |
+| GET | `/api/listings/pending` | `product:moderate` | platform |  |
+| POST | `/api/listings/{product_id}/approve` | `product:moderate` | platform | product.approve |
+| POST | `/api/listings/{product_id}/reject` | `product:moderate` | platform | product.reject |
 | GET | `/api/messages` | `message:read` | platform |  |
 | GET | `/api/messages/{conversation_id}` | `message:read` | platform |  |
-| GET | `/api/notifications` | `authenticated` | customer |  |
+| GET | `/api/notifications/` | `authenticated` | customer |  |
 | POST | `/api/notifications/read-all` | `authenticated` | customer | notification.read_all |
 | POST | `/api/notifications/{notification_id}/read` | `authenticated` | customer | notification.read |
 | GET | `/api/orders` | `order:read` | platform |  |
@@ -135,6 +140,7 @@ Every route declares a permission. Every mutating route declares the audit actio
 | PATCH | `/api/seller/products/{product_id}` | `product:update` | vendor | product.update |
 | POST | `/api/seller/products/{product_id}/image` | `product:update` | vendor | product.upload_image |
 | POST | `/api/seller/products/{product_id}/restore` | `product:update` | vendor | product.restore |
+| POST | `/api/seller/products/{product_id}/submit` | `product:update` | vendor | product.submit |
 | PUT | `/api/seller/products/{product_id}/tags` | `tag:assign` | vendor | category.assign_tags |
 | POST | `/api/seller/products/{product_id}/variants` | `product:update` | vendor | product.add_variant |
 | GET | `/api/seller/reports/overview` | `report:read` | vendor |  |
@@ -169,6 +175,8 @@ Every route declares a permission. Every mutating route declares the audit actio
 | DELETE | `/api/vendors/{vendor_id}` | `vendor:delete` | platform | vendor.delete |
 | GET | `/api/vendors/{vendor_id}` | `vendor:read` | platform |  |
 | PATCH | `/api/vendors/{vendor_id}` | `vendor:update` | platform | vendor.update |
+| POST | `/api/vendors/{vendor_id}/accept` | `vendor:verify` | platform | vendor.accept_review |
+| POST | `/api/vendors/{vendor_id}/documents/sample` | `vendor:verify` | platform | vendor.attach_sample_documents |
 | GET | `/api/vendors/{vendor_id}/documents/{doc_id}/file` | `vendor:verify` | platform |  |
 | POST | `/api/vendors/{vendor_id}/documents/{doc_id}/review` | `vendor:verify` | platform | vendor.review_document |
 | GET | `/api/vendors/{vendor_id}/earnings` | `commission:read` | platform |  |

@@ -25,6 +25,7 @@ Direct grants. Super Admin's parent is Admin, so the effective set is both colum
 | `product:update` |  | yes |  | yes |  |
 | `product:delete` |  |  |  | yes |  |
 | `product:import` |  |  |  | yes |  |
+| `product:moderate` |  | yes | yes |  |  |
 | `stock:read` |  | yes | yes | yes |  |
 | `stock:adjust` |  |  |  | yes |  |
 | `category:create` |  | yes |  |  |  |

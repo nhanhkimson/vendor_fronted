@@ -100,7 +100,15 @@ export function LoginForm({ accounts, nextPath, failed }: { accounts: Account[];
           One click. Password is already set to <span className="font-medium text-foreground">demo</span>.
           {nextPath ? " You will return to checkout after." : ""}
         </p>
-        {failed ? <p className="text-sm text-destructive">That sign-in did not work. Try another role.</p> : null}
+        {failed ? (
+          <p className="text-sm text-destructive">
+            That sign-in did not work. Try another role, or{" "}
+            <Link href={`/register${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`} className="underline">
+              create an account
+            </Link>
+            . Unverified emails are sent to the OTP step automatically.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-3">

@@ -75,6 +75,18 @@ erDiagram
     BIGINT max_sales
     INTEGER sort
   }
+  email_challenges {
+    VARCHAR id PK
+    VARCHAR email
+    VARCHAR purpose
+    VARCHAR code_hash
+    INTEGER attempts
+    INTEGER max_attempts
+    DATETIME expires_at
+    DATETIME consumed_at
+    DATETIME created_at
+    VARCHAR payload_json
+  }
   outbox_events {
     VARCHAR id PK
     VARCHAR event_type
@@ -204,6 +216,8 @@ erDiagram
     INTEGER low_stock_threshold
     VARCHAR image_url
     BOOLEAN active
+    VARCHAR listing_status
+    VARCHAR listing_reason
     DATETIME archived_at
     DATETIME created_at
     DATETIME updated_at
@@ -220,6 +234,7 @@ erDiagram
     VARCHAR avatar_url
     VARCHAR vendor_id
     BOOLEAN is_active
+    DATETIME email_verified_at
     DATETIME banned_at
     VARCHAR ban_reason
     DATETIME created_at
@@ -516,10 +531,10 @@ erDiagram
   categories ||--o{ categories : parent_id
   commission_rules ||--o{ commission_rules : supersedes_id
   roles ||--o{ roles : parent_id
-  permissions ||--o{ role_permissions : permission_key
   roles ||--o{ role_permissions : role_id
-  commission_tiers ||--o{ vendors : tier_id
+  permissions ||--o{ role_permissions : permission_key
   warehouses ||--o{ vendors : warehouse_id
+  commission_tiers ||--o{ vendors : tier_id
   vendors ||--o{ coupons : vendor_id
   vendors ||--o{ ledger_entries : vendor_id
   vendors ||--o{ payouts : vendor_id
@@ -531,59 +546,59 @@ erDiagram
   users ||--o{ carts : user_id
   users ||--o{ notifications : user_id
   users ||--o{ payment_intents : user_id
-  payouts ||--o{ payout_approvals : payout_id
   users ||--o{ payout_approvals : approver_id
+  payouts ||--o{ payout_approvals : payout_id
   payouts ||--o{ payout_events : payout_id
-  tags ||--o{ product_tags : tag_id
   products ||--o{ product_tags : product_id
-  users ||--o{ user_roles : user_id
+  tags ||--o{ product_tags : tag_id
   roles ||--o{ user_roles : role_id
+  users ||--o{ user_roles : user_id
   vendors ||--o{ variants : vendor_id
   products ||--o{ variants : product_id
-  products ||--o{ wishlist_items : product_id
   users ||--o{ wishlist_items : user_id
-  carts ||--o{ cart_lines : cart_id
+  products ||--o{ wishlist_items : product_id
   variants ||--o{ cart_lines : variant_id
-  payment_intents ||--o{ orders : payment_intent_id
+  carts ||--o{ cart_lines : cart_id
   users ||--o{ orders : buyer_id
+  payment_intents ||--o{ orders : payment_intent_id
   warehouses ||--o{ stock_items : warehouse_id
-  vendors ||--o{ stock_items : vendor_id
   variants ||--o{ stock_items : variant_id
-  vendors ||--o{ conversations : vendor_id
+  vendors ||--o{ stock_items : vendor_id
   orders ||--o{ conversations : order_id
   users ||--o{ conversations : buyer_id
+  vendors ||--o{ conversations : vendor_id
+  coupons ||--o{ coupon_redemptions : coupon_code
   orders ||--o{ coupon_redemptions : order_id
   users ||--o{ coupon_redemptions : customer_id
-  coupons ||--o{ coupon_redemptions : coupon_code
-  payment_intents ||--o{ stock_reservations : payment_intent_id
   stock_items ||--o{ stock_reservations : stock_item_id
-  orders ||--o{ sub_orders : order_id
-  vendors ||--o{ sub_orders : vendor_id
+  payment_intents ||--o{ stock_reservations : payment_intent_id
   users ||--o{ sub_orders : buyer_id
   warehouses ||--o{ sub_orders : warehouse_id
+  vendors ||--o{ sub_orders : vendor_id
+  orders ||--o{ sub_orders : order_id
   conversations ||--o{ conversation_messages : conversation_id
   vendors ||--o{ disputes : vendor_id
-  orders ||--o{ disputes : order_id
   sub_orders ||--o{ disputes : sub_order_id
   users ||--o{ disputes : buyer_id
+  orders ||--o{ disputes : order_id
+  vendors ||--o{ order_lines : vendor_id
   orders ||--o{ order_lines : order_id
+  sub_orders ||--o{ order_lines : sub_order_id
   variants ||--o{ order_lines : variant_id
   products ||--o{ order_lines : product_id
-  sub_orders ||--o{ order_lines : sub_order_id
-  vendors ||--o{ order_lines : vendor_id
+  sub_orders ||--o{ payout_items : sub_order_id
   vendors ||--o{ payout_items : vendor_id
   payouts ||--o{ payout_items : payout_id
-  sub_orders ||--o{ payout_items : sub_order_id
+  products ||--o{ reviews : product_id
+  sub_orders ||--o{ reviews : sub_order_id
   users ||--o{ reviews : buyer_id
   vendors ||--o{ reviews : vendor_id
-  sub_orders ||--o{ reviews : sub_order_id
-  products ||--o{ reviews : product_id
   sub_orders ||--o{ sub_order_events : sub_order_id
-  order_lines ||--o{ commission_lines : order_line_id
   vendors ||--o{ commission_lines : vendor_id
-  commission_rules ||--o{ commission_lines : rule_id
-  orders ||--o{ commission_lines : order_id
   sub_orders ||--o{ commission_lines : sub_order_id
+  order_lines ||--o{ commission_lines : order_line_id
+  orders ||--o{ commission_lines : order_id
+  commission_rules ||--o{ commission_lines : rule_id
   reviews ||--o{ review_events : review_id
 ```
 
@@ -594,6 +609,7 @@ erDiagram
 - `categories`: id, name, name_kh, slug, parent_id, sort, created_at
 - `commission_rules`: id, name, target_type, target_id, rate_bps, min_fee_cents, applies_to, version, supersedes_id, effective_from, effective_to, created_by, created_at
 - `commission_tiers`: id, name, name_kh, min_sales, max_sales, sort
+- `email_challenges`: id, email, purpose, code_hash, attempts, max_attempts, expires_at, consumed_at, created_at, payload_json
 - `outbox_events`: id, event_type, payload, created_at, processed_at
 - `permissions`: key, module, action, description, sort
 - `roles`: id, name, description, kind, is_system, is_locked, parent_id, created_at
@@ -604,8 +620,8 @@ erDiagram
 - `coupons`: code, funded_by, vendor_id, discount_type, percent_off, amount_off_cents, min_subtotal_cents, starts_at, ends_at, usage_limit, per_customer_limit, used_count, is_flash, active, note, created_by, created_at, updated_at
 - `ledger_entries`: id, journal_id, account, vendor_id, debit_cents, credit_cents, order_id, sub_order_id, payout_id, memo, created_at
 - `payouts`: id, vendor_id, amount_cents, status, held_from_status, note, reference, requested_by, requested_at, approved_at, paid_at, created_at
-- `products`: id, vendor_id, category_id, title, description, price_cents, low_stock_threshold, image_url, active, archived_at, created_at, updated_at
-- `users`: id, email, password_hash, name, blurb, blurb_kh, city, source, avatar_url, vendor_id, is_active, banned_at, ban_reason, created_at, last_login_at
+- `products`: id, vendor_id, category_id, title, description, price_cents, low_stock_threshold, image_url, active, listing_status, listing_reason, archived_at, created_at, updated_at
+- `users`: id, email, password_hash, name, blurb, blurb_kh, city, source, avatar_url, vendor_id, is_active, email_verified_at, banned_at, ban_reason, created_at, last_login_at
 - `vendor_documents`: id, vendor_id, kind, name, status, file_path, original_filename, content_type, uploaded_at, reviewed_by, reviewed_at
 - `vendor_status_events`: id, vendor_id, from_status, to_status, actor_id, reason, at
 - `carts`: id, user_id, coupon_code, updated_at
